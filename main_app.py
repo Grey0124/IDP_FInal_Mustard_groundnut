@@ -4,7 +4,7 @@ import numpy as np
 import joblib
 import tensorflow as tf
 
-app = Flask(__name__)
+main_app = Flask(__name__)
 
 # Load models and scalers
 models = {
@@ -26,7 +26,7 @@ for crop in models:
         metrics=['mae']
     )
 
-@app.route('/predict/<crop>', methods=['GET'])
+@main_app.route('/predict/<crop>', methods=['GET'])
 def predict(crop):
     """
     GET /predict/<crop>?adc=...&temp=...&hum=...
@@ -50,7 +50,7 @@ def predict(crop):
     y = model.predict(Xs, verbose=0)[0, 0]
     return jsonify({'moisture': round(float(y), 2)})
 
-@app.route('/update/<crop>', methods=['POST'])
+@main_app.route('/update/<crop>', methods=['POST'])
 def update(crop):
     """
     POST /update/<crop>
@@ -81,4 +81,4 @@ def update(crop):
     return jsonify({'status': f'{crop} model updated'})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    main_app.run(host='0.0.0.0', port=5000)

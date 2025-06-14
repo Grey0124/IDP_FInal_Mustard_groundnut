@@ -25,4 +25,4 @@ ENV PORT=5000
 EXPOSE 5000
 
 # Run the application with gunicorn
-CMD ["gunicorn", "main_app:app", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120"] 
+CMD ["gunicorn", "main_app:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120"] 
