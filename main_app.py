@@ -81,4 +81,4 @@ def update(crop):
     return jsonify({'status': f'{crop} model updated'})
 
 if __name__ == '__main__':
-    main_app.run(host='0.0.0.0', port=5000)
+    main_app.run(host='0.0.0.0', port=6000)
