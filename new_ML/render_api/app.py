@@ -121,11 +121,12 @@ def load_models():
         # Try loading models (they're larger)
         try:
             logger.info("Attempting to load groundnut model...")
-            # Try multiple possible paths for .h5 models only
+            # Try multiple possible paths for .h5 models, prioritizing *_new.h5
             groundnut_model_paths = [
-                'model_groundnut.h5',  # TensorFlow model in root
-                'models/model_groundnut.h5',  # TensorFlow model in models dir
-                'models/model_groundnut_new.h5',  # New TensorFlow model in models dir
+                'models/model_groundnut_new.h5',
+                'model_groundnut_new.h5',
+                'models/model_groundnut.h5',
+                'model_groundnut.h5'
             ]
             
             groundnut_model_path = None
@@ -158,11 +159,12 @@ def load_models():
         
         try:
             logger.info("Attempting to load mustard model...")
-            # Try multiple possible paths for .h5 models only
+            # Try multiple possible paths for .h5 models, prioritizing *_new.h5
             mustard_model_paths = [
-                'model_mustard.h5',  # TensorFlow model in root
-                'models/model_mustard.h5',  # TensorFlow model in models dir
-                'models/model_mustard_new.h5',  # New TensorFlow model in models dir
+                'models/model_mustard_new.h5',
+                'model_mustard_new.h5',
+                'models/model_mustard.h5',
+                'model_mustard.h5'
             ]
             
             mustard_model_path = None

@@ -1,19 +1,16 @@
 #!/bin/bash
+# Start script for Render deployment
 
-echo "=== Moisture Meter API Startup ==="
-echo "Current directory: $(pwd)"
-echo "Files in current directory:"
-ls -la
+# Activate virtual environment if needed
+# source fvenv/bin/activate
 
-if [ -d "models" ]; then
-    echo "Models directory found:"
-    ls -la models/
-else
-    echo "Models directory not found"
-fi
+# Install dependencies (if not already installed)
+pip install -r requirements.txt
 
-echo "=== Testing model loading ==="
-python test_model_loading.py
+# Run database migrations if needed
+# python migrate.py
 
-echo "=== Starting API server ==="
-exec gunicorn app:app --bind 0.0.0.0:8080 --workers 1 --timeout 120 
+# Remove test_models.py run (was here)
+
+# Start the API
+python app.py 
