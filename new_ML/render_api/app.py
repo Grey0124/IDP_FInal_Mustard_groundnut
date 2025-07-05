@@ -49,40 +49,66 @@ def load_models():
             logger.error("Models directory does not exist!")
             return
         
-        # Load Groundnut model and scaler
-        groundnut_model_path = os.path.join(models_dir, 'groundnut_best_model.pkl')
-        groundnut_scaler_path = os.path.join(models_dir, 'groundnut_scaler.pkl')
+        # Try loading scalers first (they're smaller)
+        try:
+            logger.info("Attempting to load groundnut scaler...")
+            groundnut_scaler_path = os.path.join(models_dir, 'groundnut_scaler.pkl')
+            if os.path.exists(groundnut_scaler_path):
+                groundnut_scaler = joblib.load(groundnut_scaler_path)
+                logger.info("✓ Groundnut scaler loaded successfully")
+            else:
+                logger.error("❌ Groundnut scaler file not found")
+        except Exception as e:
+            logger.error(f"❌ Error loading groundnut scaler: {e}")
         
-        logger.info(f"Groundnut model path: {groundnut_model_path}")
-        logger.info(f"Groundnut scaler path: {groundnut_scaler_path}")
+        try:
+            logger.info("Attempting to load mustard scaler...")
+            mustard_scaler_path = os.path.join(models_dir, 'mustard_scaler.pkl')
+            if os.path.exists(mustard_scaler_path):
+                mustard_scaler = joblib.load(mustard_scaler_path)
+                logger.info("✓ Mustard scaler loaded successfully")
+            else:
+                logger.error("❌ Mustard scaler file not found")
+        except Exception as e:
+            logger.error(f"❌ Error loading mustard scaler: {e}")
         
-        if os.path.exists(groundnut_model_path) and os.path.exists(groundnut_scaler_path):
-            logger.info("Loading groundnut model and scaler...")
-            groundnut_model = joblib.load(groundnut_model_path)
-            groundnut_scaler = joblib.load(groundnut_scaler_path)
-            logger.info("✓ Groundnut model and scaler loaded successfully")
-        else:
-            logger.error(f"❌ Groundnut model exists: {os.path.exists(groundnut_model_path)}")
-            logger.error(f"❌ Groundnut scaler exists: {os.path.exists(groundnut_scaler_path)}")
+        # Try loading models (they're larger)
+        try:
+            logger.info("Attempting to load groundnut model...")
+            groundnut_model_path = os.path.join(models_dir, 'groundnut_best_model.pkl')
+            if os.path.exists(groundnut_model_path):
+                # Check file size
+                file_size = os.path.getsize(groundnut_model_path) / (1024 * 1024)  # MB
+                logger.info(f"Groundnut model file size: {file_size:.2f} MB")
+                
+                groundnut_model = joblib.load(groundnut_model_path)
+                logger.info("✓ Groundnut model loaded successfully")
+            else:
+                logger.error("❌ Groundnut model file not found")
+        except Exception as e:
+            logger.error(f"❌ Error loading groundnut model: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
         
-        # Load Mustard model and scaler
-        mustard_model_path = os.path.join(models_dir, 'mustard_best_model.pkl')
-        mustard_scaler_path = os.path.join(models_dir, 'mustard_scaler.pkl')
-        
-        logger.info(f"Mustard model path: {mustard_model_path}")
-        logger.info(f"Mustard scaler path: {mustard_scaler_path}")
-        
-        if os.path.exists(mustard_model_path) and os.path.exists(mustard_scaler_path):
-            logger.info("Loading mustard model and scaler...")
-            mustard_model = joblib.load(mustard_model_path)
-            mustard_scaler = joblib.load(mustard_scaler_path)
-            logger.info("✓ Mustard model and scaler loaded successfully")
-        else:
-            logger.error(f"❌ Mustard model exists: {os.path.exists(mustard_model_path)}")
-            logger.error(f"❌ Mustard scaler exists: {os.path.exists(mustard_scaler_path)}")
+        try:
+            logger.info("Attempting to load mustard model...")
+            mustard_model_path = os.path.join(models_dir, 'mustard_best_model.pkl')
+            if os.path.exists(mustard_model_path):
+                # Check file size
+                file_size = os.path.getsize(mustard_model_path) / (1024 * 1024)  # MB
+                logger.info(f"Mustard model file size: {file_size:.2f} MB")
+                
+                mustard_model = joblib.load(mustard_model_path)
+                logger.info("✓ Mustard model loaded successfully")
+            else:
+                logger.error("❌ Mustard model file not found")
+        except Exception as e:
+            logger.error(f"❌ Error loading mustard model: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             
     except Exception as e:
-        logger.error(f"Error loading models: {e}")
+        logger.error(f"Error in load_models: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
 
