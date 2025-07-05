@@ -11,6 +11,9 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -211,7 +214,57 @@ class ModelTraining:
         
         return best_tuned_model, scaler
     
-    def save_models(self, results, scaler, best_tuned_model, crop_name=None):
+    def convert_to_tensorflow_model(self, sklearn_model, scaler, X_train, y_train, model_name):
+        """Convert scikit-learn model to TensorFlow model by training it to mimic sklearn predictions"""
+        print(f"Converting {model_name} to TensorFlow model...")
+        
+        # Get sklearn model predictions on training data
+        X_train_scaled = scaler.transform(X_train)
+        sklearn_predictions = sklearn_model.predict(X_train_scaled)
+        
+        # Create TensorFlow model
+        input_shape = (X_train.shape[1],)
+        model = keras.Sequential([
+            layers.Dense(128, activation='relu', input_shape=input_shape),
+            layers.Dropout(0.2),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(1, activation='linear')
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='mse',
+            metrics=['mae']
+        )
+        
+        # Train TensorFlow model to mimic sklearn predictions
+        # Use sklearn predictions as target (transfer learning)
+        model.fit(
+            X_train_scaled, sklearn_predictions,
+            epochs=100,
+            batch_size=32,
+            validation_split=0.2,
+            verbose=0
+        )
+        
+        print(f"✓ TensorFlow model trained to mimic {model_name}")
+        return model
+    
+    def save_scaler_for_tensorflow(self, scaler, prefix):
+        """Save scaler in a format compatible with TensorFlow"""
+        # Save scaler parameters for TensorFlow compatibility
+        scaler_params = {
+            'scale_': scaler.scale_,
+            'mean_': scaler.mean_,
+            'var_': scaler.var_,
+            'feature_names_in_': scaler.feature_names_in_.tolist() if hasattr(scaler, 'feature_names_in_') else None
+        }
+        joblib.dump(scaler_params, self.models_dir / f"scaler_{prefix}_tf_new.pkl")
+        print(f"✓ scaler_{prefix}_tf_new.pkl (TensorFlow compatible)")
+    
+    def save_models(self, results, scaler, best_tuned_model, X_train, y_train, crop_name=None):
         """Save trained models and scaler"""
         prefix = crop_name.lower() if crop_name else "combined"
         
@@ -219,17 +272,30 @@ class ModelTraining:
         best_model_name = min(results.keys(), key=lambda x: results[x]['test_mae'])
         best_model = results[best_model_name]['model']
         
-        joblib.dump(best_model, self.models_dir / f"{prefix}_best_model.pkl")
-        joblib.dump(scaler, self.models_dir / f"{prefix}_scaler.pkl")
+        # Save scikit-learn model (for compatibility)
+        joblib.dump(best_model, self.models_dir / f"{prefix}_best_model_new.pkl")
+        joblib.dump(scaler, self.models_dir / f"{prefix}_scaler_new.pkl")
+        
+        # Convert and save as TensorFlow .h5 model
+        tf_model = self.convert_to_tensorflow_model(best_model, scaler, X_train, y_train, best_model_name)
+        
+        # Save TensorFlow model in .h5 format
+        tf_model.save(self.models_dir / f"model_{prefix}_new.h5")
         
         # Save tuned model if available
         if best_tuned_model:
-            joblib.dump(best_tuned_model['model'], self.models_dir / f"{prefix}_tuned_model.pkl")
-            joblib.dump(best_tuned_model['params'], self.models_dir / f"{prefix}_best_params.pkl")
+            joblib.dump(best_tuned_model['model'], self.models_dir / f"{prefix}_tuned_model_new.pkl")
+            joblib.dump(best_tuned_model['params'], self.models_dir / f"{prefix}_best_params_new.pkl")
+            
+            # Convert tuned model to TensorFlow
+            tf_tuned_model = self.convert_to_tensorflow_model(
+                best_tuned_model['model'], scaler, X_train, y_train, best_tuned_model['name']
+            )
+            tf_tuned_model.save(self.models_dir / f"model_{prefix}_tuned_new.h5")
         
         # Save label encoder if used
         if hasattr(self.label_encoder, 'classes_'):
-            joblib.dump(self.label_encoder, self.models_dir / f"{prefix}_label_encoder.pkl")
+            joblib.dump(self.label_encoder, self.models_dir / f"{prefix}_label_encoder_new.pkl")
         
         # Save results summary
         results_summary = {}
@@ -242,9 +308,17 @@ class ModelTraining:
                 'test_r2': result['test_r2']
             }
         
-        joblib.dump(results_summary, self.models_dir / f"{prefix}_results_summary.pkl")
+        joblib.dump(results_summary, self.models_dir / f"{prefix}_results_summary_new.pkl")
+        
+        # Save scaler for TensorFlow
+        self.save_scaler_for_tensorflow(scaler, prefix)
         
         print(f"\nModels saved to {self.models_dir}")
+        print(f"✓ {prefix}_best_model_new.pkl (scikit-learn)")
+        print(f"✓ model_{prefix}_new.h5 (TensorFlow)")
+        print(f"✓ {prefix}_scaler_new.pkl (scaler)")
+        if best_tuned_model:
+            print(f"✓ model_{prefix}_tuned_new.h5 (TensorFlow tuned)")
     
     def create_comparison_plots(self, results, X_test, y_test, crop_name=None):
         """Create comparison plots for model performance"""
@@ -315,7 +389,7 @@ class ModelTraining:
             best_tuned, tuned_scaler = self.hyperparameter_tuning(X, y, crop)
             
             # Save models
-            self.save_models(results, scaler, best_tuned, crop)
+            self.save_models(results, scaler, best_tuned, X, y, crop)
             
             # Create plots
             self.create_comparison_plots(results, X_test, y_test, crop)
@@ -336,7 +410,7 @@ class ModelTraining:
             X_combined, y_combined
         )
         
-        self.save_models(results_combined, scaler_combined, best_tuned_combined)
+        self.save_models(results_combined, scaler_combined, best_tuned_combined, X_combined, y_combined)
         self.create_comparison_plots(results_combined, X_test_combined, y_test_combined)
 
 def main():
