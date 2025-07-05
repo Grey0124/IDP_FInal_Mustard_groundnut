@@ -121,15 +121,11 @@ def load_models():
         # Try loading models (they're larger)
         try:
             logger.info("Attempting to load groundnut model...")
-            # Try multiple possible paths for both .h5 and .pkl models
+            # Try multiple possible paths for .h5 models only
             groundnut_model_paths = [
                 'model_groundnut.h5',  # TensorFlow model in root
                 'models/model_groundnut.h5',  # TensorFlow model in models dir
                 'models/model_groundnut_new.h5',  # New TensorFlow model in models dir
-                'groundnut_best_model_new.pkl',  # New scikit-learn model
-                'models/groundnut_best_model_new.pkl',  # New scikit-learn model in models dir
-                'groundnut_best_model.pkl',  # Old scikit-learn model (fallback)
-                'models/groundnut_best_model.pkl'  # Old scikit-learn model in models dir (fallback)
             ]
             
             groundnut_model_path = None
@@ -143,32 +139,16 @@ def load_models():
                 file_size = os.path.getsize(groundnut_model_path) / (1024 * 1024)  # MB
                 logger.info(f"Groundnut model file size: {file_size:.2f} MB")
                 
-                # Try loading as TensorFlow model first
-                if groundnut_model_path.endswith('.h5'):
-                    try:
-                        groundnut_model = tf.keras.models.load_model(groundnut_model_path, compile=False)
-                        groundnut_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-                        model_type = 'tensorflow'
-                        logger.info(f"✓ Groundnut TensorFlow model loaded successfully from {groundnut_model_path}")
-                    except Exception as e:
-                        logger.error(f"❌ Error loading groundnut TensorFlow model: {e}")
-                else:
-                    # Try loading as scikit-learn model
-                    try:
-                        groundnut_model = joblib.load(groundnut_model_path)
-                        model_type = 'sklearn'
-                        logger.info(f"✓ Groundnut scikit-learn model loaded successfully from {groundnut_model_path}")
-                    except Exception as e:
-                        logger.error(f"❌ Error loading groundnut scikit-learn model: {e}")
-                        # Try with different joblib settings
-                        try:
-                            groundnut_model = joblib.load(groundnut_model_path, mmap_mode='r')
-                            model_type = 'sklearn'
-                            logger.info(f"✓ Groundnut scikit-learn model loaded successfully with mmap_mode from {groundnut_model_path}")
-                        except Exception as e2:
-                            logger.error(f"❌ Failed to load groundnut scikit-learn model with mmap_mode: {e2}")
-                            import traceback
-                            logger.error(f"Traceback: {traceback.format_exc()}")
+                # Load TensorFlow model
+                try:
+                    groundnut_model = tf.keras.models.load_model(groundnut_model_path, compile=False)
+                    groundnut_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+                    model_type = 'tensorflow'
+                    logger.info(f"✓ Groundnut TensorFlow model loaded successfully from {groundnut_model_path}")
+                except Exception as e:
+                    logger.error(f"❌ Error loading groundnut TensorFlow model: {e}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
             else:
                 logger.error("❌ Groundnut model file not found in any expected location")
         except Exception as e:
@@ -178,15 +158,11 @@ def load_models():
         
         try:
             logger.info("Attempting to load mustard model...")
-            # Try multiple possible paths for both .h5 and .pkl models
+            # Try multiple possible paths for .h5 models only
             mustard_model_paths = [
                 'model_mustard.h5',  # TensorFlow model in root
                 'models/model_mustard.h5',  # TensorFlow model in models dir
                 'models/model_mustard_new.h5',  # New TensorFlow model in models dir
-                'mustard_best_model_new.pkl',  # New scikit-learn model
-                'models/mustard_best_model_new.pkl',  # New scikit-learn model in models dir
-                'mustard_best_model.pkl',  # Old scikit-learn model (fallback)
-                'models/mustard_best_model.pkl'  # Old scikit-learn model in models dir (fallback)
             ]
             
             mustard_model_path = None
@@ -200,32 +176,16 @@ def load_models():
                 file_size = os.path.getsize(mustard_model_path) / (1024 * 1024)  # MB
                 logger.info(f"Mustard model file size: {file_size:.2f} MB")
                 
-                # Try loading as TensorFlow model first
-                if mustard_model_path.endswith('.h5'):
-                    try:
-                        mustard_model = tf.keras.models.load_model(mustard_model_path, compile=False)
-                        mustard_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-                        model_type = 'tensorflow'
-                        logger.info(f"✓ Mustard TensorFlow model loaded successfully from {mustard_model_path}")
-                    except Exception as e:
-                        logger.error(f"❌ Error loading mustard TensorFlow model: {e}")
-                else:
-                    # Try loading as scikit-learn model
-                    try:
-                        mustard_model = joblib.load(mustard_model_path)
-                        model_type = 'sklearn'
-                        logger.info(f"✓ Mustard scikit-learn model loaded successfully from {mustard_model_path}")
-                    except Exception as e:
-                        logger.error(f"❌ Error loading mustard scikit-learn model: {e}")
-                        # Try with different joblib settings
-                        try:
-                            mustard_model = joblib.load(mustard_model_path, mmap_mode='r')
-                            model_type = 'sklearn'
-                            logger.info(f"✓ Mustard scikit-learn model loaded successfully with mmap_mode from {mustard_model_path}")
-                        except Exception as e2:
-                            logger.error(f"❌ Failed to load mustard scikit-learn model with mmap_mode: {e2}")
-                            import traceback
-                            logger.error(f"Traceback: {traceback.format_exc()}")
+                # Load TensorFlow model
+                try:
+                    mustard_model = tf.keras.models.load_model(mustard_model_path, compile=False)
+                    mustard_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+                    model_type = 'tensorflow'
+                    logger.info(f"✓ Mustard TensorFlow model loaded successfully from {mustard_model_path}")
+                except Exception as e:
+                    logger.error(f"❌ Error loading mustard TensorFlow model: {e}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
             else:
                 logger.error("❌ Mustard model file not found in any expected location")
         except Exception as e:
@@ -372,18 +332,13 @@ def predict_moisture():
             else:
                 raise e
         
-        # Make prediction based on model type
-        if model_type == 'tensorflow':
-            # TensorFlow model prediction
-            prediction_array = model.predict(scaled_features, verbose=0)
-            # Extract scalar value properly
-            if hasattr(prediction_array, 'flatten'):
-                prediction = float(prediction_array.flatten()[0])
-            else:
-                prediction = float(prediction_array[0, 0])
+        # Make prediction (TensorFlow model only)
+        prediction_array = model.predict(scaled_features, verbose=0)
+        # Extract scalar value properly
+        if hasattr(prediction_array, 'flatten'):
+            prediction = float(prediction_array.flatten()[0])
         else:
-            # Scikit-learn model prediction
-            prediction = float(model.predict(scaled_features)[0])
+            prediction = float(prediction_array[0, 0])
         
         if prediction is None or np.isnan(prediction):
             return jsonify({
@@ -459,28 +414,22 @@ def debug_info():
             'mustard_scaler': mustard_scaler is not None
         },
         'file_checks': {
+            # Scalers only
             'groundnut_scaler.pkl': os.path.exists('groundnut_scaler.pkl'),
             'mustard_scaler.pkl': os.path.exists('mustard_scaler.pkl'),
-            'groundnut_best_model.pkl': os.path.exists('groundnut_best_model.pkl'),
-            'mustard_best_model.pkl': os.path.exists('mustard_best_model.pkl'),
             'models/groundnut_scaler.pkl': os.path.exists('models/groundnut_scaler.pkl'),
             'models/mustard_scaler.pkl': os.path.exists('models/mustard_scaler.pkl'),
-            'models/groundnut_best_model.pkl': os.path.exists('models/groundnut_best_model.pkl'),
-            'models/mustard_best_model.pkl': os.path.exists('models/mustard_best_model.pkl'),
-            # New model files
             'groundnut_scaler_new.pkl': os.path.exists('groundnut_scaler_new.pkl'),
             'mustard_scaler_new.pkl': os.path.exists('mustard_scaler_new.pkl'),
-            'groundnut_best_model_new.pkl': os.path.exists('groundnut_best_model_new.pkl'),
-            'mustard_best_model_new.pkl': os.path.exists('mustard_best_model_new.pkl'),
             'models/groundnut_scaler_new.pkl': os.path.exists('models/groundnut_scaler_new.pkl'),
             'models/mustard_scaler_new.pkl': os.path.exists('models/mustard_scaler_new.pkl'),
-            'models/groundnut_best_model_new.pkl': os.path.exists('models/groundnut_best_model_new.pkl'),
-            'models/mustard_best_model_new.pkl': os.path.exists('models/mustard_best_model_new.pkl'),
-            # TensorFlow models
+            # TensorFlow models only
             'model_groundnut.h5': os.path.exists('model_groundnut.h5'),
             'model_mustard.h5': os.path.exists('model_mustard.h5'),
             'models/model_groundnut.h5': os.path.exists('models/model_groundnut.h5'),
-            'models/model_mustard.h5': os.path.exists('models/model_mustard.h5')
+            'models/model_mustard.h5': os.path.exists('models/model_mustard.h5'),
+            'models/model_groundnut_new.h5': os.path.exists('models/model_groundnut_new.h5'),
+            'models/model_mustard_new.h5': os.path.exists('models/model_mustard_new.h5')
         }
     }
     

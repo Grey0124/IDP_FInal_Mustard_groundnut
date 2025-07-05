@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Script to copy .h5 models from models directory to render_api models directory
+Script to copy .h5 models and scalers to render_api models directory
+Only copies TensorFlow models and scalers (no .pkl models)
 """
 
 import shutil
@@ -17,7 +18,7 @@ def copy_h5_models():
     # Ensure render_api models directory exists
     render_api_models_dir.mkdir(exist_ok=True)
     
-    # Models to copy to render_api
+    # Models to copy to render_api (TensorFlow models only)
     render_api_models = [
         ("model_groundnut_new.h5", "model_groundnut.h5"),
         ("model_mustard_new.h5", "model_mustard.h5"),
@@ -25,7 +26,7 @@ def copy_h5_models():
         ("mustard_scaler_new.pkl", "mustard_scaler.pkl")
     ]
     
-    # Models to copy to main directory
+    # Models to copy to main directory (TensorFlow models only)
     main_models = [
         ("model_groundnut_new.h5", "model_groundnut.h5"),
         ("model_mustard_new.h5", "model_mustard.h5"),
@@ -33,7 +34,7 @@ def copy_h5_models():
         ("mustard_scaler_new.pkl", "scaler_mustard.pkl")
     ]
     
-    print("=== Copying .h5 Models to Render API Models Directory ===")
+    print("=== Copying TensorFlow Models and Scalers to Render API ===")
     
     for src_name, dst_name in render_api_models:
         src_path = models_dir / src_name
@@ -45,7 +46,7 @@ def copy_h5_models():
         else:
             print(f"⚠️  {src_name} not found in {models_dir}")
     
-    print("\n=== Copying .h5 Models to Main Directory ===")
+    print("\n=== Copying TensorFlow Models and Scalers to Main Directory ===")
     
     for src_name, dst_name in main_models:
         src_path = models_dir / src_name
@@ -57,10 +58,31 @@ def copy_h5_models():
         else:
             print(f"⚠️  {src_name} not found in {models_dir}")
     
+    print("\n=== Cleaning up old .pkl model files ===")
+    
+    # Remove old .pkl model files from render_api (keep only scalers)
+    old_pkl_files = [
+        "groundnut_best_model.pkl",
+        "mustard_best_model.pkl",
+        "groundnut_best_model_new.pkl",
+        "mustard_best_model_new.pkl",
+        "groundnut_tuned_model.pkl",
+        "mustard_tuned_model.pkl",
+        "groundnut_tuned_model_new.pkl",
+        "mustard_tuned_model_new.pkl"
+    ]
+    
+    for old_file in old_pkl_files:
+        old_path = render_api_models_dir / old_file
+        if old_path.exists():
+            old_path.unlink()
+            print(f"🗑️  Removed {old_file}")
+    
     print("\nModels copied successfully!")
-    print("✓ Render API models: new_ML/render_api/models/")
-    print("✓ Main app models: root directory")
-    print("You can now run main_app.py and deploy render_api with the new .h5 models")
+    print("✓ Render API models: new_ML/render_api/models/ (TensorFlow only)")
+    print("✓ Main app models: root directory (TensorFlow only)")
+    print("✓ Only scalers remain as .pkl files")
+    print("✓ Old .pkl model files removed from render_api")
 
 if __name__ == "__main__":
     copy_h5_models() 
