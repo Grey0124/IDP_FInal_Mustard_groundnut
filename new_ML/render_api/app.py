@@ -39,45 +39,79 @@ def load_models():
         # List files in current directory
         logger.info(f"Files in current directory: {os.listdir('.')}")
         
-        # Models are now directly in the current directory
-        logger.info("Models are located in the current directory")
+        # Check if models directory exists
+        if os.path.exists('models'):
+            logger.info(f"Models directory found: {os.listdir('models')}")
         
         # Try loading scalers first (they're smaller)
         try:
             logger.info("Attempting to load groundnut scaler...")
-            groundnut_scaler_path = 'groundnut_scaler.pkl'
-            if os.path.exists(groundnut_scaler_path):
+            # Try multiple possible paths
+            groundnut_scaler_paths = [
+                'groundnut_scaler.pkl',
+                'models/groundnut_scaler.pkl'
+            ]
+            
+            groundnut_scaler_path = None
+            for path in groundnut_scaler_paths:
+                if os.path.exists(path):
+                    groundnut_scaler_path = path
+                    break
+            
+            if groundnut_scaler_path:
                 groundnut_scaler = joblib.load(groundnut_scaler_path)
-                logger.info("✓ Groundnut scaler loaded successfully")
+                logger.info(f"✓ Groundnut scaler loaded successfully from {groundnut_scaler_path}")
             else:
-                logger.error("❌ Groundnut scaler file not found")
+                logger.error("❌ Groundnut scaler file not found in any expected location")
         except Exception as e:
             logger.error(f"❌ Error loading groundnut scaler: {e}")
         
         try:
             logger.info("Attempting to load mustard scaler...")
-            mustard_scaler_path = 'mustard_scaler.pkl'
-            if os.path.exists(mustard_scaler_path):
+            # Try multiple possible paths
+            mustard_scaler_paths = [
+                'mustard_scaler.pkl',
+                'models/mustard_scaler.pkl'
+            ]
+            
+            mustard_scaler_path = None
+            for path in mustard_scaler_paths:
+                if os.path.exists(path):
+                    mustard_scaler_path = path
+                    break
+            
+            if mustard_scaler_path:
                 mustard_scaler = joblib.load(mustard_scaler_path)
-                logger.info("✓ Mustard scaler loaded successfully")
+                logger.info(f"✓ Mustard scaler loaded successfully from {mustard_scaler_path}")
             else:
-                logger.error("❌ Mustard scaler file not found")
+                logger.error("❌ Mustard scaler file not found in any expected location")
         except Exception as e:
             logger.error(f"❌ Error loading mustard scaler: {e}")
         
         # Try loading models (they're larger)
         try:
             logger.info("Attempting to load groundnut model...")
-            groundnut_model_path = 'groundnut_best_model.pkl'
-            if os.path.exists(groundnut_model_path):
+            # Try multiple possible paths
+            groundnut_model_paths = [
+                'groundnut_best_model.pkl',
+                'models/groundnut_best_model.pkl'
+            ]
+            
+            groundnut_model_path = None
+            for path in groundnut_model_paths:
+                if os.path.exists(path):
+                    groundnut_model_path = path
+                    break
+            
+            if groundnut_model_path:
                 # Check file size
                 file_size = os.path.getsize(groundnut_model_path) / (1024 * 1024)  # MB
                 logger.info(f"Groundnut model file size: {file_size:.2f} MB")
                 
                 groundnut_model = joblib.load(groundnut_model_path)
-                logger.info("✓ Groundnut model loaded successfully")
+                logger.info(f"✓ Groundnut model loaded successfully from {groundnut_model_path}")
             else:
-                logger.error("❌ Groundnut model file not found")
+                logger.error("❌ Groundnut model file not found in any expected location")
         except Exception as e:
             logger.error(f"❌ Error loading groundnut model: {e}")
             import traceback
@@ -85,16 +119,27 @@ def load_models():
         
         try:
             logger.info("Attempting to load mustard model...")
-            mustard_model_path = 'mustard_best_model.pkl'
-            if os.path.exists(mustard_model_path):
+            # Try multiple possible paths
+            mustard_model_paths = [
+                'mustard_best_model.pkl',
+                'models/mustard_best_model.pkl'
+            ]
+            
+            mustard_model_path = None
+            for path in mustard_model_paths:
+                if os.path.exists(path):
+                    mustard_model_path = path
+                    break
+            
+            if mustard_model_path:
                 # Check file size
                 file_size = os.path.getsize(mustard_model_path) / (1024 * 1024)  # MB
                 logger.info(f"Mustard model file size: {file_size:.2f} MB")
                 
                 mustard_model = joblib.load(mustard_model_path)
-                logger.info("✓ Mustard model loaded successfully")
+                logger.info(f"✓ Mustard model loaded successfully from {mustard_model_path}")
             else:
-                logger.error("❌ Mustard model file not found")
+                logger.error("❌ Mustard model file not found in any expected location")
         except Exception as e:
             logger.error(f"❌ Error loading mustard model: {e}")
             import traceback
@@ -303,6 +348,16 @@ def debug_info():
             'mustard_model': mustard_model is not None,
             'groundnut_scaler': groundnut_scaler is not None,
             'mustard_scaler': mustard_scaler is not None
+        },
+        'file_checks': {
+            'groundnut_scaler.pkl': os.path.exists('groundnut_scaler.pkl'),
+            'mustard_scaler.pkl': os.path.exists('mustard_scaler.pkl'),
+            'groundnut_best_model.pkl': os.path.exists('groundnut_best_model.pkl'),
+            'mustard_best_model.pkl': os.path.exists('mustard_best_model.pkl'),
+            'models/groundnut_scaler.pkl': os.path.exists('models/groundnut_scaler.pkl'),
+            'models/mustard_scaler.pkl': os.path.exists('models/mustard_scaler.pkl'),
+            'models/groundnut_best_model.pkl': os.path.exists('models/groundnut_best_model.pkl'),
+            'models/mustard_best_model.pkl': os.path.exists('models/mustard_best_model.pkl')
         }
     }
     
