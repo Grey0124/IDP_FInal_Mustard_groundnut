@@ -313,7 +313,7 @@ import numpy as np
         float: Predicted original moisture meter reading
     """
     # Load the trained River model
-    model = joblib.load('models/{prefix}_final_river_model.pkl')
+    model = joblib.load('render_api/{prefix}_best_model.pkl')
     
     # Prepare features
     if crop_type is not None:
@@ -359,8 +359,8 @@ def predict_moisture(adc, temperature, humidity, crop_type=None):
         float: Predicted original moisture meter reading
     """
     # Load the trained model and scaler
-    scaler = joblib.load('models/{prefix}_final_scaler.pkl')
-    model = joblib.load('models/{prefix}_final_model.pkl')
+    scaler = joblib.load('render_api/{prefix}_scaler.pkl')
+    model = joblib.load('render_api/{prefix}_best_model.pkl')
     
     # Prepare features
     if crop_type is not None:
@@ -384,7 +384,7 @@ def predict_moisture(adc, temperature, humidity, crop_type=None):
             with open(self.models_dir / f"{prefix}_prediction_function.py", 'w') as f:
                 f.write(prediction_code)
         
-            print(f"Standalone prediction function saved to: models/{prefix}_prediction_function.py")
+            print(f"Standalone prediction function saved to: render_api/{prefix}_prediction_function.py")
             print("You can import and use this function in your Raspberry Pi deployment")
             
         except FileNotFoundError:

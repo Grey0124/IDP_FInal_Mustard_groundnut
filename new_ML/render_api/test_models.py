@@ -11,9 +11,9 @@ def test_model_loading():
     """Test if models can be loaded properly"""
     print("🔍 Testing Model Loading...")
     
-    # Check if model files exist
-    groundnut_path = "models/groundnut_final_river_model.pkl"
-    mustard_path = "models/mustard_final_river_model.pkl"
+    # Check if model files exist (now directly in current directory)
+    groundnut_path = "groundnut_best_model.pkl"
+    mustard_path = "mustard_best_model.pkl"
     
     print(f"Groundnut model exists: {os.path.exists(groundnut_path)}")
     print(f"Mustard model exists: {os.path.exists(mustard_path)}")
@@ -65,8 +65,8 @@ def test_with_original_models():
     print("\n🔍 Testing with Original Models...")
     
     # Try to load from main models directory
-    original_groundnut_path = "../models/groundnut_final_river_model.pkl"
-    original_mustard_path = "../models/mustard_final_river_model.pkl"
+    original_groundnut_path = "../models/groundnut_best_model.pkl"
+    original_mustard_path = "../models/mustard_best_model.pkl"
     
     print(f"Original groundnut model exists: {os.path.exists(original_groundnut_path)}")
     print(f"Original mustard model exists: {os.path.exists(original_mustard_path)}")

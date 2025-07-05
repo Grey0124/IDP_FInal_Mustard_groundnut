@@ -39,20 +39,13 @@ def load_models():
         # List files in current directory
         logger.info(f"Files in current directory: {os.listdir('.')}")
         
-        # Check if models directory exists
-        models_dir = os.path.join(os.path.dirname(__file__), 'models')
-        logger.info(f"Models directory path: {models_dir}")
-        
-        if os.path.exists(models_dir):
-            logger.info(f"Models directory exists. Contents: {os.listdir(models_dir)}")
-        else:
-            logger.error("Models directory does not exist!")
-            return
+        # Models are now directly in the current directory
+        logger.info("Models are located in the current directory")
         
         # Try loading scalers first (they're smaller)
         try:
             logger.info("Attempting to load groundnut scaler...")
-            groundnut_scaler_path = os.path.join(models_dir, 'groundnut_scaler.pkl')
+            groundnut_scaler_path = 'groundnut_scaler.pkl'
             if os.path.exists(groundnut_scaler_path):
                 groundnut_scaler = joblib.load(groundnut_scaler_path)
                 logger.info("✓ Groundnut scaler loaded successfully")
@@ -63,7 +56,7 @@ def load_models():
         
         try:
             logger.info("Attempting to load mustard scaler...")
-            mustard_scaler_path = os.path.join(models_dir, 'mustard_scaler.pkl')
+            mustard_scaler_path = 'mustard_scaler.pkl'
             if os.path.exists(mustard_scaler_path):
                 mustard_scaler = joblib.load(mustard_scaler_path)
                 logger.info("✓ Mustard scaler loaded successfully")
@@ -75,7 +68,7 @@ def load_models():
         # Try loading models (they're larger)
         try:
             logger.info("Attempting to load groundnut model...")
-            groundnut_model_path = os.path.join(models_dir, 'groundnut_best_model.pkl')
+            groundnut_model_path = 'groundnut_best_model.pkl'
             if os.path.exists(groundnut_model_path):
                 # Check file size
                 file_size = os.path.getsize(groundnut_model_path) / (1024 * 1024)  # MB
@@ -92,7 +85,7 @@ def load_models():
         
         try:
             logger.info("Attempting to load mustard model...")
-            mustard_model_path = os.path.join(models_dir, 'mustard_best_model.pkl')
+            mustard_model_path = 'mustard_best_model.pkl'
             if os.path.exists(mustard_model_path):
                 # Check file size
                 file_size = os.path.getsize(mustard_model_path) / (1024 * 1024)  # MB

@@ -368,7 +368,7 @@ if __name__ == "__main__":
         print(f"📄 Deployment script created: {script_file}")
         print("💡 To deploy on Raspberry Pi:")
         print(f"   1. Copy {script_file} to your Raspberry Pi")
-        print(f"   2. Copy the models/ directory to your Raspberry Pi")
+        print(f"   2. Copy the render_api/ directory to your Raspberry Pi")
         print(f"   3. Run: python deploy_moisture_meter.py")
     
     def test_prediction(self):
@@ -427,7 +427,7 @@ def main():
     print("="*80)
     print("\n🎉 Your custom moisture meter is ready for deployment!")
     print("\n📋 Next steps:")
-    print("1. Transfer models/ directory to Raspberry Pi")
+    print("1. Transfer render_api/ directory to Raspberry Pi")
     print("2. Install required libraries: pip install river joblib pandas numpy")
     print("3. Connect sensors (DHT22, ADC, moisture sensor)")
     print("4. Run: python deploy_moisture_meter.py")
