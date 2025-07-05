@@ -30,30 +30,61 @@ def load_models():
     global groundnut_model, mustard_model, groundnut_scaler, mustard_scaler
     
     try:
+        logger.info("Starting model loading process...")
+        
+        # Check current working directory
+        current_dir = os.getcwd()
+        logger.info(f"Current working directory: {current_dir}")
+        
+        # List files in current directory
+        logger.info(f"Files in current directory: {os.listdir('.')}")
+        
+        # Check if models directory exists
+        models_dir = os.path.join(os.path.dirname(__file__), 'models')
+        logger.info(f"Models directory path: {models_dir}")
+        
+        if os.path.exists(models_dir):
+            logger.info(f"Models directory exists. Contents: {os.listdir(models_dir)}")
+        else:
+            logger.error("Models directory does not exist!")
+            return
+        
         # Load Groundnut model and scaler
-        groundnut_model_path = os.path.join(os.path.dirname(__file__), 'models', 'groundnut_best_model.pkl')
-        groundnut_scaler_path = os.path.join(os.path.dirname(__file__), 'models', 'groundnut_scaler.pkl')
+        groundnut_model_path = os.path.join(models_dir, 'groundnut_best_model.pkl')
+        groundnut_scaler_path = os.path.join(models_dir, 'groundnut_scaler.pkl')
+        
+        logger.info(f"Groundnut model path: {groundnut_model_path}")
+        logger.info(f"Groundnut scaler path: {groundnut_scaler_path}")
         
         if os.path.exists(groundnut_model_path) and os.path.exists(groundnut_scaler_path):
+            logger.info("Loading groundnut model and scaler...")
             groundnut_model = joblib.load(groundnut_model_path)
             groundnut_scaler = joblib.load(groundnut_scaler_path)
             logger.info("✓ Groundnut model and scaler loaded successfully")
         else:
-            logger.error("❌ Groundnut model or scaler not found")
+            logger.error(f"❌ Groundnut model exists: {os.path.exists(groundnut_model_path)}")
+            logger.error(f"❌ Groundnut scaler exists: {os.path.exists(groundnut_scaler_path)}")
         
         # Load Mustard model and scaler
-        mustard_model_path = os.path.join(os.path.dirname(__file__), 'models', 'mustard_best_model.pkl')
-        mustard_scaler_path = os.path.join(os.path.dirname(__file__), 'models', 'mustard_scaler.pkl')
+        mustard_model_path = os.path.join(models_dir, 'mustard_best_model.pkl')
+        mustard_scaler_path = os.path.join(models_dir, 'mustard_scaler.pkl')
+        
+        logger.info(f"Mustard model path: {mustard_model_path}")
+        logger.info(f"Mustard scaler path: {mustard_scaler_path}")
         
         if os.path.exists(mustard_model_path) and os.path.exists(mustard_scaler_path):
+            logger.info("Loading mustard model and scaler...")
             mustard_model = joblib.load(mustard_model_path)
             mustard_scaler = joblib.load(mustard_scaler_path)
             logger.info("✓ Mustard model and scaler loaded successfully")
         else:
-            logger.error("❌ Mustard model or scaler not found")
+            logger.error(f"❌ Mustard model exists: {os.path.exists(mustard_model_path)}")
+            logger.error(f"❌ Mustard scaler exists: {os.path.exists(mustard_scaler_path)}")
             
     except Exception as e:
         logger.error(f"Error loading models: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 @app.route('/')
 def home():
@@ -237,6 +268,26 @@ def predict_mustard():
         return predict_moisture()
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/debug')
+def debug_info():
+    """Debug endpoint to check file system and model loading"""
+    import os
+    
+    debug_info = {
+        'current_working_directory': os.getcwd(),
+        'files_in_current_dir': os.listdir('.'),
+        'models_dir_exists': os.path.exists('models'),
+        'models_dir_contents': os.listdir('models') if os.path.exists('models') else [],
+        'models_loaded': {
+            'groundnut_model': groundnut_model is not None,
+            'mustard_model': mustard_model is not None,
+            'groundnut_scaler': groundnut_scaler is not None,
+            'mustard_scaler': mustard_scaler is not None
+        }
+    }
+    
+    return jsonify(debug_info)
 
 @app.errorhandler(404)
 def not_found(error):
