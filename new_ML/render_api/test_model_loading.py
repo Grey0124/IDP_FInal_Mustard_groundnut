@@ -6,10 +6,18 @@ Test script to verify model loading in render_api directory
 import os
 import joblib
 import logging
+import warnings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Suppress scikit-learn version warnings
+try:
+    from sklearn.exceptions import InconsistentVersionWarning
+    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+except ImportError:
+    pass
 
 def test_model_loading():
     """Test loading all models and scalers"""
@@ -36,6 +44,12 @@ def test_model_loading():
                 logger.info(f"✓ Successfully loaded {scaler_file}")
             except Exception as e:
                 logger.error(f"❌ Failed to load {scaler_file}: {e}")
+                # Try with mmap_mode
+                try:
+                    scaler = joblib.load(scaler_file, mmap_mode='r')
+                    logger.info(f"✓ Successfully loaded {scaler_file} with mmap_mode")
+                except Exception as e2:
+                    logger.error(f"❌ Failed to load {scaler_file} with mmap_mode: {e2}")
         else:
             logger.warning(f"⚠️  File not found: {scaler_file}")
     
@@ -57,6 +71,12 @@ def test_model_loading():
                 logger.info(f"✓ Successfully loaded {model_file}")
             except Exception as e:
                 logger.error(f"❌ Failed to load {model_file}: {e}")
+                # Try with mmap_mode
+                try:
+                    model = joblib.load(model_file, mmap_mode='r')
+                    logger.info(f"✓ Successfully loaded {model_file} with mmap_mode")
+                except Exception as e2:
+                    logger.error(f"❌ Failed to load {model_file} with mmap_mode: {e2}")
         else:
             logger.warning(f"⚠️  File not found: {model_file}")
 

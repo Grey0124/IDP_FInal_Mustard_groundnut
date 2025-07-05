@@ -43,6 +43,11 @@ def load_models():
         if os.path.exists('models'):
             logger.info(f"Models directory found: {os.listdir('models')}")
         
+        # Import warnings filter to suppress version warnings
+        import warnings
+        from sklearn.exceptions import InconsistentVersionWarning
+        warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+        
         # Try loading scalers first (they're smaller)
         try:
             logger.info("Attempting to load groundnut scaler...")
@@ -59,8 +64,17 @@ def load_models():
                     break
             
             if groundnut_scaler_path:
-                groundnut_scaler = joblib.load(groundnut_scaler_path)
-                logger.info(f"✓ Groundnut scaler loaded successfully from {groundnut_scaler_path}")
+                try:
+                    groundnut_scaler = joblib.load(groundnut_scaler_path)
+                    logger.info(f"✓ Groundnut scaler loaded successfully from {groundnut_scaler_path}")
+                except Exception as e:
+                    logger.error(f"❌ Error loading groundnut scaler from {groundnut_scaler_path}: {e}")
+                    # Try with different joblib settings
+                    try:
+                        groundnut_scaler = joblib.load(groundnut_scaler_path, mmap_mode='r')
+                        logger.info(f"✓ Groundnut scaler loaded successfully with mmap_mode from {groundnut_scaler_path}")
+                    except Exception as e2:
+                        logger.error(f"❌ Failed to load groundnut scaler with mmap_mode: {e2}")
             else:
                 logger.error("❌ Groundnut scaler file not found in any expected location")
         except Exception as e:
@@ -81,8 +95,17 @@ def load_models():
                     break
             
             if mustard_scaler_path:
-                mustard_scaler = joblib.load(mustard_scaler_path)
-                logger.info(f"✓ Mustard scaler loaded successfully from {mustard_scaler_path}")
+                try:
+                    mustard_scaler = joblib.load(mustard_scaler_path)
+                    logger.info(f"✓ Mustard scaler loaded successfully from {mustard_scaler_path}")
+                except Exception as e:
+                    logger.error(f"❌ Error loading mustard scaler from {mustard_scaler_path}: {e}")
+                    # Try with different joblib settings
+                    try:
+                        mustard_scaler = joblib.load(mustard_scaler_path, mmap_mode='r')
+                        logger.info(f"✓ Mustard scaler loaded successfully with mmap_mode from {mustard_scaler_path}")
+                    except Exception as e2:
+                        logger.error(f"❌ Failed to load mustard scaler with mmap_mode: {e2}")
             else:
                 logger.error("❌ Mustard scaler file not found in any expected location")
         except Exception as e:
@@ -108,8 +131,19 @@ def load_models():
                 file_size = os.path.getsize(groundnut_model_path) / (1024 * 1024)  # MB
                 logger.info(f"Groundnut model file size: {file_size:.2f} MB")
                 
-                groundnut_model = joblib.load(groundnut_model_path)
-                logger.info(f"✓ Groundnut model loaded successfully from {groundnut_model_path}")
+                try:
+                    groundnut_model = joblib.load(groundnut_model_path)
+                    logger.info(f"✓ Groundnut model loaded successfully from {groundnut_model_path}")
+                except Exception as e:
+                    logger.error(f"❌ Error loading groundnut model from {groundnut_model_path}: {e}")
+                    # Try with different joblib settings
+                    try:
+                        groundnut_model = joblib.load(groundnut_model_path, mmap_mode='r')
+                        logger.info(f"✓ Groundnut model loaded successfully with mmap_mode from {groundnut_model_path}")
+                    except Exception as e2:
+                        logger.error(f"❌ Failed to load groundnut model with mmap_mode: {e2}")
+                        import traceback
+                        logger.error(f"Traceback: {traceback.format_exc()}")
             else:
                 logger.error("❌ Groundnut model file not found in any expected location")
         except Exception as e:
@@ -136,8 +170,19 @@ def load_models():
                 file_size = os.path.getsize(mustard_model_path) / (1024 * 1024)  # MB
                 logger.info(f"Mustard model file size: {file_size:.2f} MB")
                 
-                mustard_model = joblib.load(mustard_model_path)
-                logger.info(f"✓ Mustard model loaded successfully from {mustard_model_path}")
+                try:
+                    mustard_model = joblib.load(mustard_model_path)
+                    logger.info(f"✓ Mustard model loaded successfully from {mustard_model_path}")
+                except Exception as e:
+                    logger.error(f"❌ Error loading mustard model from {mustard_model_path}: {e}")
+                    # Try with different joblib settings
+                    try:
+                        mustard_model = joblib.load(mustard_model_path, mmap_mode='r')
+                        logger.info(f"✓ Mustard model loaded successfully with mmap_mode from {mustard_model_path}")
+                    except Exception as e2:
+                        logger.error(f"❌ Failed to load mustard model with mmap_mode: {e2}")
+                        import traceback
+                        logger.error(f"Traceback: {traceback.format_exc()}")
             else:
                 logger.error("❌ Mustard model file not found in any expected location")
         except Exception as e:
