@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+"""
+Moisture Meter API for Render Deployment
+Flask-based REST API for moisture prediction using trained models
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import joblib
+import numpy as np
+import os
+from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+# Global variables for models
+groundnut_model = None
+mustard_model = None
+groundnut_scaler = None
+mustard_scaler = None
+
+def load_models():
+    """Load the trained models from Phase 2"""
+    global groundnut_model, mustard_model, groundnut_scaler, mustard_scaler
+    
+    try:
+        # Load Groundnut model and scaler
+        groundnut_model_path = os.path.join(os.path.dirname(__file__), 'models', 'groundnut_best_model.pkl')
+        groundnut_scaler_path = os.path.join(os.path.dirname(__file__), 'models', 'groundnut_scaler.pkl')
+        
+        if os.path.exists(groundnut_model_path) and os.path.exists(groundnut_scaler_path):
+            groundnut_model = joblib.load(groundnut_model_path)
+            groundnut_scaler = joblib.load(groundnut_scaler_path)
+            logger.info("✓ Groundnut model and scaler loaded successfully")
+        else:
+            logger.error("❌ Groundnut model or scaler not found")
+        
+        # Load Mustard model and scaler
+        mustard_model_path = os.path.join(os.path.dirname(__file__), 'models', 'mustard_best_model.pkl')
+        mustard_scaler_path = os.path.join(os.path.dirname(__file__), 'models', 'mustard_scaler.pkl')
+        
+        if os.path.exists(mustard_model_path) and os.path.exists(mustard_scaler_path):
+            mustard_model = joblib.load(mustard_model_path)
+            mustard_scaler = joblib.load(mustard_scaler_path)
+            logger.info("✓ Mustard model and scaler loaded successfully")
+        else:
+            logger.error("❌ Mustard model or scaler not found")
+            
+    except Exception as e:
+        logger.error(f"Error loading models: {e}")
+
+@app.route('/')
+def home():
+    """API home endpoint"""
+    return jsonify({
+        'message': '🌾 Moisture Meter API',
+        'version': '1.0.0',
+        'status': 'active',
+        'models_loaded': {
+            'groundnut': groundnut_model is not None,
+            'mustard': mustard_model is not None
+        },
+        'endpoints': {
+            'predict': '/predict',
+            'health': '/health',
+            'models': '/models'
+        }
+    })
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'models_available': {
+            'groundnut': groundnut_model is not None,
+            'mustard': mustard_model is not None
+        }
+    })
+
+@app.route('/models')
+def get_models():
+    """Get information about available models"""
+    return jsonify({
+        'available_models': {
+            'groundnut': {
+                'available': groundnut_model is not None,
+                'type': 'Phase 2 Best Model (scikit-learn)',
+                'features': ['ADC', 'Temperature', 'Humidity']
+            },
+            'mustard': {
+                'available': mustard_model is not None,
+                'type': 'Phase 2 Best Model (scikit-learn)',
+                'features': ['ADC', 'Temperature', 'Humidity']
+            }
+        }
+    })
+
+@app.route('/predict', methods=['POST'])
+def predict_moisture():
+    """Predict moisture content based on sensor readings"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No data provided',
+                'message': 'Please provide ADC, temperature, humidity, and crop_type'
+            }), 400
+        
+        # Extract parameters
+        adc = data.get('adc')
+        temperature = data.get('temperature')
+        humidity = data.get('humidity')
+        crop_type = data.get('crop_type', 'auto').lower()
+        
+        # Validate required parameters
+        if adc is None or temperature is None or humidity is None:
+            return jsonify({
+                'error': 'Missing required parameters',
+                'message': 'Please provide ADC, temperature, and humidity values'
+            }), 400
+        
+        # Validate data types
+        try:
+            adc = float(adc)
+            temperature = float(temperature)
+            humidity = float(humidity)
+        except (ValueError, TypeError):
+            return jsonify({
+                'error': 'Invalid data types',
+                'message': 'ADC, temperature, and humidity must be numeric values'
+            }), 400
+        
+        # Auto-detect crop type based on ADC range if not specified
+        if crop_type == 'auto':
+            # Simple heuristic: Groundnut typically has higher ADC values
+            if adc > 2950:
+                crop_type = 'groundnut'
+            else:
+                crop_type = 'mustard'
+        
+        # Select appropriate model and scaler
+        if crop_type == 'groundnut':
+            if groundnut_model is None or groundnut_scaler is None:
+                return jsonify({
+                    'error': 'Model not available',
+                    'message': 'Groundnut model is not loaded'
+                }), 503
+            model = groundnut_model
+            scaler = groundnut_scaler
+            model_name = "Groundnut"
+        elif crop_type == 'mustard':
+            if mustard_model is None or mustard_scaler is None:
+                return jsonify({
+                    'error': 'Model not available',
+                    'message': 'Mustard model is not loaded'
+                }), 503
+            model = mustard_model
+            scaler = mustard_scaler
+            model_name = "Mustard"
+        else:
+            return jsonify({
+                'error': 'Invalid crop type',
+                'message': 'Crop type must be "groundnut", "mustard", or "auto"'
+            }), 400
+        
+        # Prepare features for scikit-learn model
+        features_array = np.array([[adc, temperature, humidity]])
+        
+        # Scale features
+        scaled_features = scaler.transform(features_array)
+        
+        # Make prediction
+        prediction = model.predict(scaled_features)[0]
+        
+        if prediction is None or np.isnan(prediction):
+            return jsonify({
+                'error': 'Prediction failed',
+                'message': 'Model could not make a prediction with the provided data'
+            }), 500
+        
+        # Prepare response
+        response = {
+            'status': 'success',
+            'prediction': {
+                'moisture_percentage': round(float(prediction), 2),
+                'crop_type': crop_type,
+                'model_used': model_name,
+                'confidence': 'high'
+            },
+            'input_data': {
+                'adc': adc,
+                'temperature': temperature,
+                'humidity': humidity,
+                'crop_type': crop_type
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        logger.info(f"Prediction made: {crop_type} - {prediction:.2f}% moisture")
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Error in prediction: {e}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': str(e)
+        }), 500
+
+@app.route('/predict/groundnut', methods=['POST'])
+def predict_groundnut():
+    """Predict moisture specifically for groundnut"""
+    try:
+        data = request.get_json()
+        if data:
+            data['crop_type'] = 'groundnut'
+        return predict_moisture()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/predict/mustard', methods=['POST'])
+def predict_mustard():
+    """Predict moisture specifically for mustard"""
+    try:
+        data = request.get_json()
+        if data:
+            data['crop_type'] = 'mustard'
+        return predict_moisture()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error'}), 500
+
+if __name__ == '__main__':
+    # Load models on startup
+    logger.info("Loading moisture prediction models...")
+    load_models()
+    
+    # Get port from environment variable (for Render)
+    port = int(os.environ.get('PORT', 5000))
+    
+    logger.info(f"Starting Moisture Meter API on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False) 

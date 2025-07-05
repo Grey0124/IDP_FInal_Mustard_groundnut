@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
-# Try to import River, if not available, use sklearn's SGDRegressor with partial_fit
+# Import River for true online learning
 try:
-    from river import linear_model, preprocessing, metrics, compose
+    from river import linear_model, preprocessing, metrics, compose, optim
     RIVER_AVAILABLE = True
-    print("River library available - using online learning")
+    print("River library available - using true online learning")
 except ImportError:
     RIVER_AVAILABLE = False
     from sklearn.linear_model import SGDRegressor
@@ -19,7 +19,7 @@ except ImportError:
     print("River library not available - using sklearn SGDRegressor with partial_fit")
 
 class OnlineLearning:
-    def __init__(self, data_dir=".", models_dir="models"):
+    def __init__(self, data_dir="new_ML", models_dir="models"):
         self.data_dir = Path(data_dir)
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(exist_ok=True)
@@ -45,29 +45,18 @@ class OnlineLearning:
             return None, None, None
     
     def create_online_model(self, crop_name=None):
-        """Create an online learning model"""
+        """Create an online learning model using River"""
         if RIVER_AVAILABLE:
             # Use River for true online learning
-            if crop_name is None:
-                # Combined model with crop encoding
+            # Create a pipeline with preprocessing and linear regression
                 model = compose.Pipeline(
                     preprocessing.StandardScaler(),
-                    linear_model.SGDRegressor(
-                        optimizer=linear_model.SGD(learning_rate=0.01),
-                        loss='squared'
-                    )
-                )
-            else:
-                # Single crop model
-                model = compose.Pipeline(
-                    preprocessing.StandardScaler(),
-                    linear_model.SGDRegressor(
-                        optimizer=linear_model.SGD(learning_rate=0.01),
-                        loss='squared'
+                linear_model.LinearRegression(
+                    optimizer=optim.SGD(lr=0.01)
                     )
                 )
         else:
-            # Use sklearn SGDRegressor with partial_fit
+            # Fallback to sklearn SGDRegressor with partial_fit
             model = SGDRegressor(
                 learning_rate='invscaling',
                 eta0=0.01,
@@ -81,7 +70,7 @@ class OnlineLearning:
         return model
     
     def simulate_online_learning(self, crop_name=None, window_size=50):
-        """Simulate online learning with streaming data"""
+        """Simulate online learning with streaming data using River"""
         print(f"\n=== Online Learning Simulation for {crop_name or 'Combined Data'} ===")
         print("Objective: Continuously improve prediction of original moisture meter readings")
         
@@ -97,9 +86,10 @@ class OnlineLearning:
         # Create online model
         online_model = self.create_online_model(crop_name)
         
-        # Initialize metrics
+        # Initialize River metrics
         if RIVER_AVAILABLE:
-            metric = metrics.MAE()
+            mae_metric = metrics.MAE()
+            rmse_metric = metrics.RMSE()
         else:
             predictions = []
             actuals = []
@@ -115,7 +105,7 @@ class OnlineLearning:
         print("Features: Custom meter ADC, Temperature, Humidity")
         
         for i, (_, row) in enumerate(df.iterrows(), 1):
-            # Prepare features
+            # Prepare features for River
             if crop_name is None and 'crop' in df.columns:
                 # For combined model, we need to encode crop
                 features = {
@@ -135,13 +125,17 @@ class OnlineLearning:
             target = row['original_moisture']
             
             if RIVER_AVAILABLE:
-                # River online learning
+                # River online learning - predict first, then learn
                 y_pred = online_model.predict_one(features)
+                
+                # Update metrics if prediction is valid
                 if y_pred is not None:
-                    metric.update(target, y_pred)
+                    mae_metric.update(target, y_pred)
+                    rmse_metric.update(target, y_pred)
                     window_predictions.append(y_pred)
                     window_actuals.append(target)
                 
+                # Learn from this sample
                 online_model.learn_one(features, target)
                 
                 # Track performance every window_size samples
@@ -152,11 +146,13 @@ class OnlineLearning:
                         performance_history.append({
                             'sample': i,
                             'mae': recent_mae,
-                            'cumulative_mae': metric.get()
+                            'cumulative_mae': mae_metric.get(),
+                            'cumulative_rmse': rmse_metric.get()
                         })
-                        print(f"Samples {i-window_size+1}-{i}: MAE = {recent_mae:.4f}, Cumulative MAE = {metric.get():.4f}")
+                        print(f"Samples {i-window_size+1}-{i}: MAE = {recent_mae:.4f}, "
+                              f"Cumulative MAE = {mae_metric.get():.4f}, RMSE = {rmse_metric.get():.4f}")
             else:
-                # Sklearn partial_fit approach
+                # Sklearn partial_fit approach (fallback)
                 features_array = np.array([[features['ADC'], features['Temperature'], features['Humidity']]])
                 
                 if i == 1:
@@ -185,7 +181,8 @@ class OnlineLearning:
                         performance_history.append({
                             'sample': i,
                             'mae': recent_mae,
-                            'cumulative_mae': cumulative_mae
+                            'cumulative_mae': cumulative_mae,
+                            'cumulative_rmse': np.sqrt(np.mean((np.array(actuals) - np.array(predictions))**2))
                         })
                         print(f"Samples {i-window_size+1}-{i}: MAE = {recent_mae:.4f}, Cumulative MAE = {cumulative_mae:.4f}")
         
@@ -199,7 +196,7 @@ class OnlineLearning:
         
         df_perf = pd.DataFrame(performance_history)
         
-        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        fig, axes = plt.subplots(3, 1, figsize=(12, 12))
         fig.suptitle(f'Online Learning Performance - {crop_name or "Combined Data"} (Predicting Original Meter Readings)', fontsize=16)
         
         # Rolling MAE
@@ -218,12 +215,21 @@ class OnlineLearning:
         axes[1].grid(True, alpha=0.3)
         axes[1].legend()
         
+        # Cumulative RMSE
+        axes[2].plot(df_perf['sample'], df_perf['cumulative_rmse'], 'g-', linewidth=2, label='Cumulative RMSE')
+        axes[2].set_title('Cumulative RMSE')
+        axes[2].set_xlabel('Sample Number')
+        axes[2].set_ylabel('Root Mean Square Error (%)')
+        axes[2].grid(True, alpha=0.3)
+        axes[2].legend()
+        
         plt.tight_layout()
-        plt.savefig(self.data_dir / f'{crop_name or "combined"}_online_learning_performance.png', 
+        crop_name_str = crop_name or "combined"
+        plt.savefig(self.data_dir / f'{crop_name_str}_online_learning_performance.png', 
                    dpi=300, bbox_inches='tight')
         plt.close()
         
-        print(f"Performance plots saved to {self.data_dir / f'{crop_name or 'combined'}_online_learning_performance.png'}")
+        print(f"Performance plots saved to {self.data_dir / f'{crop_name_str}_online_learning_performance.png'}")
     
     def save_online_model(self, online_model, crop_name=None):
         """Save the online learning model"""
@@ -231,13 +237,13 @@ class OnlineLearning:
         
         if RIVER_AVAILABLE:
             # Save River model
-            joblib.dump(online_model, self.models_dir / f"{prefix}_online_model.pkl")
+            joblib.dump(online_model, self.models_dir / f"{prefix}_river_online_model.pkl")
+            print(f"River online model saved to {self.models_dir}")
         else:
             # Save sklearn model and scaler
             joblib.dump(online_model[0], self.models_dir / f"{prefix}_online_scaler.pkl")
             joblib.dump(online_model[1], self.models_dir / f"{prefix}_online_model.pkl")
-        
-        print(f"Online model saved to {self.models_dir}")
+            print(f"Sklearn online model saved to {self.models_dir}")
     
     def create_realtime_prediction_system(self, crop_name=None):
         """Create a real-time prediction system for deployment"""
@@ -256,42 +262,134 @@ class OnlineLearning:
             online_model = self.create_online_model(crop_name)
             print("Creating new online learning model")
         
-        # Create prediction function
+        # Save the online model for later use
+        prefix = crop_name.lower() if crop_name else "combined"
+        if RIVER_AVAILABLE:
+            joblib.dump(online_model, self.models_dir / f"{prefix}_final_river_model.pkl")
+        else:
+            joblib.dump(online_model[0], self.models_dir / f"{prefix}_final_scaler.pkl")
+            joblib.dump(online_model[1], self.models_dir / f"{prefix}_final_model.pkl")
+        
+        print("Real-time prediction system created and saved")
+        print("This system will output readings that match original moisture meter accuracy")
+        print(f"Model saved as: {prefix}_final_river_model.pkl" if RIVER_AVAILABLE else f"Models saved as: {prefix}_final_scaler.pkl and {prefix}_final_model.pkl")
+        
+        return online_model
+    
+    def create_standalone_prediction_function(self, crop_name=None):
+        """Create a standalone prediction function that can be easily deployed"""
+        print(f"\n=== Creating Standalone Prediction Function for {crop_name or 'Combined Data'} ===")
+        
+        # Load the trained online model
+        prefix = crop_name.lower() if crop_name else "combined"
+        
+        try:
+            if RIVER_AVAILABLE:
+                model = joblib.load(self.models_dir / f"{prefix}_final_river_model.pkl")
+            else:
+                scaler = joblib.load(self.models_dir / f"{prefix}_final_scaler.pkl")
+                model = joblib.load(self.models_dir / f"{prefix}_final_model.pkl")
+                model = (scaler, model)
+            
+            print(f"Loaded trained model for {crop_name or 'combined data'}")
+            
+            # Create prediction function code as a string
+            if RIVER_AVAILABLE:
+                prediction_code = f'''
+import joblib
+import numpy as np
+
         def predict_moisture(adc, temperature, humidity, crop_type=None):
-            """Real-time moisture prediction function"""
-            if crop_name is None and crop_type is not None:
+    """
+    Predict original moisture meter reading from custom meter data
+    
+    Args:
+        adc (float): Custom meter ADC reading
+        temperature (float): Temperature in Celsius
+        humidity (float): Humidity percentage
+        crop_type (str, optional): Crop type ('groundnut' or 'mustard') for combined model
+    
+    Returns:
+        float: Predicted original moisture meter reading
+    """
+    # Load the trained River model
+    model = joblib.load('models/{prefix}_final_river_model.pkl')
+    
+    # Prepare features
+    if crop_type is not None:
                 # Combined model with crop encoding
                 crop_encoded = 0 if crop_type.lower() == 'groundnut' else 1
-                features = {
+        features = {{
                     'ADC': adc,
                     'Temperature': temperature,
                     'Humidity': humidity,
                     'crop_encoded': crop_encoded
-                }
+        }}
             else:
-                features = {
+        features = {{
                     'ADC': adc,
                     'Temperature': temperature,
                     'Humidity': humidity
-                }
+        }}
             
-            if RIVER_AVAILABLE:
-                prediction = online_model.predict_one(features)
-                if prediction is not None:
-                    online_model.learn_one(features, prediction)  # Self-learning
-                return prediction
+    # Make prediction
+    prediction = model.predict_one(features)
+    return prediction if prediction is not None else 0.0
+
+# Example usage:
+# prediction = predict_moisture(adc=500, temperature=25.0, humidity=60.0, crop_type='groundnut')
+# print(f"Predicted moisture: {{prediction:.2f}}%")
+'''
+            else:
+                prediction_code = f'''
+import joblib
+import numpy as np
+
+def predict_moisture(adc, temperature, humidity, crop_type=None):
+    """
+    Predict original moisture meter reading from custom meter data
+    
+    Args:
+        adc (float): Custom meter ADC reading
+        temperature (float): Temperature in Celsius
+        humidity (float): Humidity percentage
+        crop_type (str, optional): Crop type ('groundnut' or 'mustard') for combined model
+    
+    Returns:
+        float: Predicted original moisture meter reading
+    """
+    # Load the trained model and scaler
+    scaler = joblib.load('models/{prefix}_final_scaler.pkl')
+    model = joblib.load('models/{prefix}_final_model.pkl')
+    
+    # Prepare features
+    if crop_type is not None:
+        # Combined model with crop encoding
+        crop_encoded = 0 if crop_type.lower() == 'groundnut' else 1
+        features_array = np.array([[adc, temperature, humidity, crop_encoded]])
             else:
                 features_array = np.array([[adc, temperature, humidity]])
-                scaled_features = online_model[0].transform(features_array)
-                prediction = online_model[1].predict(scaled_features)[0]
+    
+    # Scale features and predict
+    scaled_features = scaler.transform(features_array)
+    prediction = model.predict(scaled_features)[0]
                 return prediction
         
-        # Save prediction function
-        joblib.dump(predict_moisture, self.models_dir / f"{crop_name.lower() if crop_name else 'combined'}_prediction_function.pkl")
+# Example usage:
+# prediction = predict_moisture(adc=500, temperature=25.0, humidity=60.0, crop_type='groundnut')
+# print(f"Predicted moisture: {{prediction:.2f}}%")
+'''
+            
+            # Save the prediction function code
+            with open(self.models_dir / f"{prefix}_prediction_function.py", 'w') as f:
+                f.write(prediction_code)
         
-        print("Real-time prediction system created and saved")
-        print("This system will output readings that match original moisture meter accuracy")
-        return predict_moisture
+            print(f"Standalone prediction function saved to: models/{prefix}_prediction_function.py")
+            print("You can import and use this function in your Raspberry Pi deployment")
+            
+        except FileNotFoundError:
+            print(f"No trained model found for {crop_name or 'combined data'}")
+            print("Please run the online learning simulation first")
     
     def run_online_learning_simulation(self):
         """Run online learning simulation for all crops"""
@@ -307,6 +405,7 @@ class OnlineLearning:
             self.create_performance_plots(performance_history, crop)
             self.save_online_model(online_model, crop)
             self.create_realtime_prediction_system(crop)
+            self.create_standalone_prediction_function(crop)
         
         # Combined model simulation
         print(f"\n{'='*60}")
@@ -317,6 +416,7 @@ class OnlineLearning:
         self.create_performance_plots(performance_history_combined)
         self.save_online_model(online_model_combined)
         self.create_realtime_prediction_system()
+        self.create_standalone_prediction_function()
 
 def main():
     """Main function to run Phase 3"""
@@ -324,6 +424,13 @@ def main():
     print("Objective: Continuously improve prediction of original moisture meter readings")
     print("This will make custom meter readings match original meter accuracy over time")
     print("and adapt to changing environmental conditions")
+    
+    if RIVER_AVAILABLE:
+        print("Using River library for true online learning")
+        print("Features: Incremental learning, concept drift adaptation, real-time updates")
+    else:
+        print("Using sklearn SGDRegressor with partial_fit (fallback)")
+        print("Note: Install River for better online learning capabilities")
     
     # Initialize online learning
     ol = OnlineLearning()

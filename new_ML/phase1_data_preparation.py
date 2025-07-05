@@ -30,7 +30,7 @@ class DataPreparation:
         sns.set_palette("husl")
         
     def clean_data(self, df, data_type):
-        """Clean and validate data"""
+        """Clean and validate data with enhanced outlier detection"""
         print(f"  Cleaning {data_type} data...")
         
         # Make a copy to avoid modifying original
@@ -59,6 +59,10 @@ class DataPreparation:
                 # Replace with the correct humidity value (53)
                 df_clean.loc[corrupted_mask, 'Humidity'] = 53
         
+        # Enhanced outlier detection for Mustard data
+        if 'Mustard' in data_type:
+            df_clean = self.clean_mustard_outliers(df_clean)
+        
         # Remove any remaining rows with invalid data
         initial_count = len(df_clean)
         df_clean = df_clean.dropna()
@@ -69,6 +73,115 @@ class DataPreparation:
         
         print(f"    Clean data: {len(df_clean)} samples")
         return df_clean
+    
+    def clean_mustard_outliers(self, df):
+        """Enhanced outlier detection specifically for Mustard data"""
+        print("    Applying enhanced Mustard outlier detection...")
+        
+        initial_count = len(df)
+        
+        # 1. Remove physically impossible moisture values
+        # Moisture should be between 0% and 50% for agricultural products
+        moisture_col = None
+        if 'Moisture' in df.columns:
+            moisture_col = 'Moisture'
+        elif 'moisture' in df.columns:
+            moisture_col = 'moisture'
+        elif 'meter' in df.columns:
+            moisture_col = 'meter'
+            
+        if moisture_col:
+            before_moisture = len(df)
+            df = df[df[moisture_col] >= 0]
+            df = df[df[moisture_col] <= 50]
+            after_moisture = len(df)
+            if before_moisture != after_moisture:
+                print(f"      Removed {before_moisture - after_moisture} impossible moisture values")
+        
+        # 2. Remove extreme ADC outliers (3 standard deviations)
+        adc_col = None
+        if 'ADC' in df.columns:
+            adc_col = 'ADC'
+        elif 'adc' in df.columns:
+            adc_col = 'adc'
+            
+        if adc_col:
+            adc_mean = df[adc_col].mean()
+            adc_std = df[adc_col].std()
+            adc_lower = adc_mean - 3 * adc_std
+            adc_upper = adc_mean + 3 * adc_std
+            
+            before_adc = len(df)
+            df = df[df[adc_col] >= adc_lower]
+            df = df[df[adc_col] <= adc_upper]
+            after_adc = len(df)
+            if before_adc != after_adc:
+                print(f"      Removed {before_adc - after_adc} extreme ADC outliers")
+                print(f"      ADC range: {adc_lower:.0f} to {adc_upper:.0f}")
+        
+        # 3. Remove temperature outliers (reasonable room temperature)
+        temp_col = None
+        if 'Temperature' in df.columns:
+            temp_col = 'Temperature'
+        elif 'temp' in df.columns:
+            temp_col = 'temp'
+            
+        if temp_col:
+            before_temp = len(df)
+            df = df[df[temp_col] >= 20]
+            df = df[df[temp_col] <= 40]
+            after_temp = len(df)
+            if before_temp != after_temp:
+                print(f"      Removed {before_temp - after_temp} temperature outliers")
+        
+        # 4. Remove humidity outliers (reasonable humidity range)
+        humid_col = None
+        if 'Humidity' in df.columns:
+            humid_col = 'Humidity'
+        elif 'humid' in df.columns:
+            humid_col = 'humid'
+            
+        if humid_col:
+            before_humid = len(df)
+            df = df[df[humid_col] >= 30]
+            df = df[df[humid_col] <= 90]
+            after_humid = len(df)
+            if before_humid != after_humid:
+                print(f"      Removed {before_humid - after_humid} humidity outliers")
+        
+        # 5. Remove duplicate or near-duplicate readings (only if all required columns exist)
+        required_cols = []
+        if adc_col:
+            required_cols.append(adc_col)
+        if temp_col:
+            required_cols.append(temp_col)
+        if humid_col:
+            required_cols.append(humid_col)
+            
+        if len(required_cols) >= 2:  # Need at least 2 columns for meaningful deduplication
+            before_dupes = len(df)
+            df = df.drop_duplicates(subset=required_cols, keep='first')
+            after_dupes = len(df)
+            if before_dupes != after_dupes:
+                print(f"      Removed {before_dupes - after_dupes} duplicate readings")
+        
+        final_count = len(df)
+        total_removed = initial_count - final_count
+        
+        if total_removed > 0:
+            print(f"      Total outliers removed: {total_removed} ({total_removed/initial_count*100:.1f}% of data)")
+            
+            # Show final statistics
+            if moisture_col:
+                print(f"      Final moisture range: {df[moisture_col].min():.2f}% to {df[moisture_col].max():.2f}%")
+            if adc_col:
+                print(f"      Final ADC range: {df[adc_col].min():.0f} to {df[adc_col].max():.0f}")
+            if temp_col:
+                print(f"      Final temperature range: {df[temp_col].min():.1f}°C to {df[temp_col].max():.1f}°C")
+            if humid_col:
+                print(f"      Final humidity range: {df[humid_col].min():.0f}% to {df[humid_col].max():.0f}%")
+        
+        return df
     
     def load_custom_meter_data(self):
         """Load custom meter data for both crops"""
@@ -99,7 +212,7 @@ class DataPreparation:
         return groundnut_custom, mustard_custom
     
     def load_original_meter_data(self):
-        """Load original moisture meter data for both crops"""
+        """Load original moisture meter data for both crops with enhanced cleaning"""
         print("Loading original moisture meter data...")
         
         # Load Groundnut original meter data (2 samples)
@@ -113,6 +226,8 @@ class DataPreparation:
             if file_path.exists():
                 df = pd.read_csv(file_path)
                 df['sample'] = i + 1
+                # Clean original meter data
+                df = self.clean_data(df, f"Groundnut original meter sample {i+1}")
                 groundnut_original_data.append(df)
                 print(f"  Groundnut original sample {i+1}: {len(df)} samples")
             else:
@@ -129,6 +244,8 @@ class DataPreparation:
             if file_path.exists():
                 df = pd.read_csv(file_path)
                 df['sample'] = i + 1
+                # Clean original meter data with enhanced cleaning for Mustard
+                df = self.clean_data(df, f"Mustard original meter sample {i+1}")
                 mustard_original_data.append(df)
                 print(f"  Mustard original sample {i+1}: {len(df)} samples")
             else:
