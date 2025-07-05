@@ -15,9 +15,11 @@ COPY . .
 # Create models directory
 RUN mkdir -p models
 
-# Copy models from parent directory
-COPY ../models/groundnut_final_river_model.pkl models/
-COPY ../models/mustard_final_river_model.pkl models/
+# Copy Phase 2 scikit-learn models and scalers from parent directory
+COPY ../models/groundnut_best_model.pkl models/
+COPY ../models/mustard_best_model.pkl models/
+COPY ../models/groundnut_scaler.pkl models/
+COPY ../models/mustard_scaler.pkl models/
 
 # Expose port
 EXPOSE 5000
