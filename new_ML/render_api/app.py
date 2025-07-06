@@ -320,16 +320,16 @@ def predict_moisture():
             }), 400
         
         # Prepare features for model
-        features_array = np.array([[adc, temperature, humidity]])
+        features_df = pd.DataFrame([[adc, temperature, humidity]], columns=['ADC', 'Temperature', 'Humidity'])
         
         # Scale features - handle feature names warning
         try:
-            scaled_features = scaler.transform(features_array)
+            scaled_features = scaler.transform(features_df)
         except Exception as e:
             # If scaler has feature names, try without them
             if hasattr(scaler, 'feature_names_in_'):
                 # Create DataFrame with proper feature names
-                feature_df = pd.DataFrame(features_array, columns=scaler.feature_names_in_)
+                feature_df = pd.DataFrame([[adc, temperature, humidity]], columns=scaler.feature_names_in_)
                 scaled_features = scaler.transform(feature_df)
             else:
                 raise e
@@ -398,6 +398,127 @@ def predict_mustard():
         return predict_moisture()
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/update/<crop>', methods=['POST'])
+def update_model(crop):
+    """
+    POST /update/<crop>
+    JSON: { "adc": …, "temp": …, "hum": …, "moisture": … }
+    Update .h5 model directly with new data
+    """
+    try:
+        # Validate crop type
+        if crop not in ['groundnut', 'mustard']:
+            return jsonify({'error': f'Unknown crop: {crop}'}), 400
+        
+        # Get JSON data
+        data = request.get_json(force=True)
+        
+        # Extract and validate parameters
+        try:
+            adc = float(data['adc'])
+            temp = float(data['temp'])
+            hum = float(data['hum'])
+            moisture = float(data['moisture'])
+        except (KeyError, TypeError, ValueError):
+            return jsonify({'error': 'Invalid JSON body. Required: adc, temp, hum, moisture'}), 400
+        
+        # Get the appropriate model and scaler
+        if crop == 'groundnut':
+            if groundnut_model is None or groundnut_scaler is None:
+                return jsonify({'error': 'Groundnut model not loaded'}), 503
+            model = groundnut_model
+            scaler = groundnut_scaler
+        else:  # mustard
+            if mustard_model is None or mustard_scaler is None:
+                return jsonify({'error': 'Mustard model not loaded'}), 503
+            model = mustard_model
+            scaler = mustard_scaler
+        
+        # Prepare data
+        X_new = pd.DataFrame([[adc, temp, hum]], columns=['ADC', 'Temperature', 'Humidity'])
+        y_new = np.array([moisture])
+        
+        # Scale features
+        try:
+            Xs = scaler.transform(X_new)
+        except Exception as e:
+            # Handle feature names if present
+            if hasattr(scaler, 'feature_names_in_'):
+                feature_df = pd.DataFrame(X_new, columns=scaler.feature_names_in_)
+                Xs = scaler.transform(feature_df)
+            else:
+                raise e
+        
+        # Update model with new data
+        model.fit(Xs, y_new, epochs=1, verbose=0)
+        
+        # Save updated model
+        model_path = f'model_{crop}_updated.h5'
+        model.save(model_path)
+        
+        # Log the update
+        logger.info(f"✓ {crop.capitalize()} model updated and saved to {model_path}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'{crop} model updated successfully',
+            'model_saved': model_path,
+            'input_data': {
+                'adc': adc,
+                'temp': temp,
+                'hum': hum,
+                'moisture': moisture
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating {crop} model: {e}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': str(e)
+        }), 500
+
+@app.route('/update/groundnut', methods=['POST'])
+def update_groundnut():
+    """Update groundnut model specifically"""
+    return update_model('groundnut')
+
+@app.route('/update/mustard', methods=['POST'])
+def update_mustard():
+    """Update mustard model specifically"""
+    return update_model('mustard')
+
+@app.route('/models/status', methods=['GET'])
+def get_models_status():
+    """Get status of all models"""
+    try:
+        status = {
+            'models_loaded': {
+                'groundnut': groundnut_model is not None,
+                'mustard': mustard_model is not None
+            },
+            'scalers_loaded': {
+                'groundnut': groundnut_scaler is not None,
+                'mustard': mustard_scaler is not None
+            },
+            'updated_model_files': {
+                'groundnut': os.path.exists('model_groundnut_updated.h5'),
+                'mustard': os.path.exists('model_mustard_updated.h5')
+            },
+            'model_type': model_type,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"Error getting models status: {e}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': str(e)
+        }), 500
 
 @app.route('/debug')
 def debug_info():

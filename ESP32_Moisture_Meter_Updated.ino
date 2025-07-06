@@ -11,7 +11,7 @@
 
 const char* ssid     = "RMRaikar";
 const char* password = "RMRaikar@777";
-const String server_url = "https://idp-final-mustard-groundnut-final-model.onrender.com";
+const String server_url = "https://idp-final-mustard-groundnut-1.onrender.com";
 
 // === Objects ===
 DHT dht(DHTPIN, DHTTYPE);
@@ -53,6 +53,53 @@ void drawMainFrame() {
   centerText("mustard / groundnut", 215, TFT_YELLOW, 2);
 }
 
+void testAPIConnection() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected for API test.");
+    return;
+  }
+
+  HTTPClient http;
+  String url = server_url + "/models";
+  
+  http.begin(url);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.println("API Models Response: " + response);
+    
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, response);
+    
+    if (!error) {
+      if (doc.containsKey("available_models")) {
+        bool groundnutAvailable = doc["available_models"]["groundnut"]["available"];
+        bool mustardAvailable = doc["available_models"]["mustard"]["available"];
+        String modelType = doc["model_type"];
+        
+        Serial.println("Groundnut model: " + String(groundnutAvailable ? "Available" : "Not available"));
+        Serial.println("Mustard model: " + String(mustardAvailable ? "Available" : "Not available"));
+        Serial.println("Model type: " + modelType);
+        
+        tft.fillScreen(TFT_BLACK);
+        centerText("API Connected", 20, TFT_GREEN, 2);
+        centerText("Groundnut: " + String(groundnutAvailable ? "OK" : "FAIL"), 50, groundnutAvailable ? TFT_GREEN : TFT_RED);
+        centerText("Mustard: " + String(mustardAvailable ? "OK" : "FAIL"), 80, mustardAvailable ? TFT_GREEN : TFT_RED);
+        centerText("Type: " + modelType, 110, TFT_CYAN);
+        delay(3000);
+      }
+    }
+  } else {
+    Serial.println("API test failed: " + String(httpCode));
+    tft.fillScreen(TFT_BLACK);
+    centerText("API Test Failed", 60, TFT_RED, 2);
+    delay(2000);
+  }
+  
+  http.end();
+}
+
 // === Setup ===
 void setup() {
   Serial.begin(115200);
@@ -79,6 +126,11 @@ void setup() {
 
   Serial.println("Type 'mustard' or 'groundnut' to select crop.");
   Serial.println("Type 'read' to take reading and send to model.");
+
+  // Test API connection and show model status
+  testAPIConnection();
+  
+  drawMainFrame();
 }
 
 // === Loop ===
@@ -93,8 +145,12 @@ void loop() {
       drawMainFrame(); // Update UI with new crop
     } else if (input == "read") {
       readyToSend = true;
+    } else if (input == "test") {
+      Serial.println("Testing API connection...");
+      testAPIConnection();
+      drawMainFrame();
     } else {
-      Serial.println("Unknown command.");
+      Serial.println("Unknown command. Use: mustard/groundnut/read/test");
     }
   }
 
@@ -137,12 +193,17 @@ void sendToModel(int adc, float temp, float hum) {
 
   HTTPClient http;
 
-  String url = server_url + "/predict/" + cropType;
+  // Use the main predict endpoint with crop_type parameter
+  String url = server_url + "/predict";
   
-  // Create JSON payload
+  // Create JSON payload with crop_type
   String jsonPayload = "{\"adc\":" + String(adc) + 
                       ",\"temperature\":" + String(temp, 1) + 
-                      ",\"humidity\":" + String(hum, 1) + "}";
+                      ",\"humidity\":" + String(hum, 1) + 
+                      ",\"crop_type\":\"" + cropType + "\"}";
+
+  Serial.println("Sending to: " + url);
+  Serial.println("Payload: " + jsonPayload);
 
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
@@ -154,6 +215,7 @@ void sendToModel(int adc, float temp, float hum) {
 
   if (httpCode > 0) {
     String response = http.getString();
+    Serial.println("HTTP Code: " + String(httpCode));
     Serial.println("Raw Response:\n" + response);
 
     // Parse JSON response
@@ -164,13 +226,16 @@ void sendToModel(int adc, float temp, float hum) {
       if (doc.containsKey("prediction")) {
         float moisture = doc["prediction"]["moisture_percentage"];
         String modelUsed = doc["prediction"]["model_used"];
+        String modelType = doc["prediction"]["model_type"];
         
         Serial.println("Moisture: " + String(moisture, 2) + "%");
         Serial.println("Model: " + modelUsed);
+        Serial.println("Model Type: " + modelType);
         
         centerText("Moisture Content", 60, TFT_YELLOW);
         centerText(String(moisture, 2) + "%", 90, TFT_WHITE, 3);
         centerText("Model: " + modelUsed, 130, TFT_CYAN, 1);
+        centerText("Type: " + modelType, 150, TFT_CYAN, 1);
         
       } else if (doc.containsKey("error")) {
         String errorMsg = doc["message"];
@@ -178,7 +243,7 @@ void sendToModel(int adc, float temp, float hum) {
         centerText("Error: " + errorMsg, 80, TFT_RED, 1);
       }
     } else {
-      Serial.println("JSON parsing failed");
+      Serial.println("JSON parsing failed: " + String(error.c_str()));
       centerText("Invalid response", 80, TFT_RED);
     }
 
