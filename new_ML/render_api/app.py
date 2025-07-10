@@ -4,7 +4,7 @@ Moisture Meter API for Render Deployment
 Flask-based REST API for moisture prediction using trained models
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import joblib
 import numpy as np
@@ -13,6 +13,8 @@ from datetime import datetime
 import logging
 import tensorflow as tf
 import pandas as pd
+import time
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -557,6 +559,172 @@ def debug_info():
     }
     
     return jsonify(debug_info)
+
+@app.route('/models/<crop_type>/download')
+def download_model(crop_type):
+    """Download TFLite model for specified crop"""
+    if crop_type not in ['mustard', 'groundnut']:
+        return jsonify({'error': 'Invalid crop type'}), 400
+    
+    # Check for TFLite models in multiple locations
+    model_paths = [
+        f"models/{crop_type}_model.tflite",
+        f"{crop_type}_model.tflite",
+        f"new_ML/models/{crop_type}_model.tflite"
+    ]
+    
+    model_path = None
+    for path in model_paths:
+        if os.path.exists(path):
+            model_path = path
+            break
+    
+    if not model_path:
+        return jsonify({'error': 'TFLite model not found'}), 404
+    
+    try:
+        return send_file(
+            model_path,
+            as_attachment=True,
+            download_name=f"{crop_type}_model.tflite",
+            mimetype='application/octet-stream'
+        )
+    except Exception as e:
+        logger.error(f"Error downloading {crop_type} model: {e}")
+        return jsonify({'error': f'Download failed: {str(e)}'}), 500
+
+@app.route('/models/status')
+def model_status():
+    """Get model status and version information"""
+    try:
+        models_info = {
+            "available_models": {
+                "mustard": {
+                    "available": any(os.path.exists(path) for path in [
+                        "models/mustard_model.tflite",
+                        "mustard_model.tflite", 
+                        "new_ML/models/mustard_model.tflite"
+                    ]),
+                    "version": "1.0",
+                    "size": 0,
+                    "last_updated": time.time()
+                },
+                "groundnut": {
+                    "available": any(os.path.exists(path) for path in [
+                        "models/groundnut_model.tflite",
+                        "groundnut_model.tflite",
+                        "new_ML/models/groundnut_model.tflite"
+                    ]),
+                    "version": "1.0", 
+                    "size": 0,
+                    "last_updated": time.time()
+                }
+            },
+            "server_version": "1.0",
+            "last_updated": time.time()
+        }
+        
+        # Update sizes if models exist
+        for crop in ["mustard", "groundnut"]:
+            for path in [f"models/{crop}_model.tflite", f"{crop}_model.tflite", f"new_ML/models/{crop}_model.tflite"]:
+                if os.path.exists(path):
+                    models_info["available_models"][crop]["size"] = os.path.getsize(path)
+                    break
+        
+        return jsonify(models_info)
+    except Exception as e:
+        logger.error(f"Error getting model status: {e}")
+        return jsonify({'error': f'Status check failed: {str(e)}'}), 500
+
+@app.route('/models/update', methods=['POST'])
+def update_model_version():
+    """Update model version (for version control)"""
+    try:
+        data = request.get_json()
+        crop_type = data.get('crop_type')
+        new_version = data.get('version', '1.0')
+        
+        if crop_type not in ['mustard', 'groundnut']:
+            return jsonify({'error': 'Invalid crop type'}), 400
+        
+        # Update model metadata
+        metadata_path = "models/model_metadata.json"
+        metadata = {}
+        
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+        
+        if 'models' not in metadata:
+            metadata['models'] = {}
+        
+        # Find model size
+        model_size = 0
+        for path in [f"models/{crop_type}_model.tflite", f"{crop_type}_model.tflite", f"new_ML/models/{crop_type}_model.tflite"]:
+            if os.path.exists(path):
+                model_size = os.path.getsize(path)
+                break
+        
+        metadata['models'][crop_type] = {
+            'version': new_version,
+            'last_updated': time.time(),
+            'size': model_size
+        }
+        
+        # Ensure models directory exists
+        os.makedirs("models", exist_ok=True)
+        
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        return jsonify({
+            'message': f'{crop_type} model updated to version {new_version}',
+            'crop_type': crop_type,
+            'version': new_version
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating model version: {e}")
+        return jsonify({'error': f'Update failed: {str(e)}'}), 500
+
+@app.route('/models/health')
+def model_health():
+    """Health check endpoint for model server"""
+    try:
+        health_status = {
+            'status': 'healthy',
+            'timestamp': time.time(),
+            'models': {
+                'mustard': {
+                    'available': any(os.path.exists(path) for path in [
+                        "models/mustard_model.tflite",
+                        "mustard_model.tflite",
+                        "new_ML/models/mustard_model.tflite"
+                    ]),
+                    'size': 0
+                },
+                'groundnut': {
+                    'available': any(os.path.exists(path) for path in [
+                        "models/groundnut_model.tflite", 
+                        "groundnut_model.tflite",
+                        "new_ML/models/groundnut_model.tflite"
+                    ]),
+                    'size': 0
+                }
+            }
+        }
+        
+        # Update sizes
+        for crop in ["mustard", "groundnut"]:
+            for path in [f"models/{crop}_model.tflite", f"{crop}_model.tflite", f"new_ML/models/{crop}_model.tflite"]:
+                if os.path.exists(path):
+                    health_status['models'][crop]['size'] = os.path.getsize(path)
+                    break
+        
+        return jsonify(health_status)
+    except Exception as e:
+        logger.error(f"Error in model health check: {e}")
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
 @app.errorhandler(404)
 def not_found(error):

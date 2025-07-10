@@ -1,0 +1,18 @@
+{
+  "models": {
+    "mustard": {
+      "version": "1.0",
+      "last_updated": 1752155805.0814557,
+      "size": 0,
+      "description": "Mustard grain moisture prediction model"
+    },
+    "groundnut": {
+      "version": "1.0",
+      "last_updated": 1752155805.0814557,
+      "size": 0,
+      "description": "Groundnut grain moisture prediction model"
+    }
+  },
+  "server_version": "1.0",
+  "last_updated": 1752155805.0814557
+}

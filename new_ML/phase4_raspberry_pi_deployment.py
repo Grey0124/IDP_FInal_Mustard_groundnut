@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""
-Phase 4: Raspberry Pi Deployment
-ML Moisture Meter - Deployment Phase
 
-This script creates a complete deployment solution for Raspberry Pi:
-1. Real-time moisture prediction system
-2. Sensor integration (ADC, DHT22, etc.)
-3. User interface and data logging
-4. Model selection and crop detection
-5. Performance monitoring and alerts
-"""
 
 import pandas as pd
 import numpy as np

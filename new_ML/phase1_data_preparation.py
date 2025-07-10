@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-"""
-Phase 1: Data Preparation & Exploration
-ML Moisture Meter - Data Preparation Phase
-
-This script handles:
-1. Loading custom meter data and original moisture meter data
-2. Merging datasets with proper alignment
-3. Data exploration and visualization
-4. Data cleaning and preprocessing
-5. Creating training datasets for both crops
-"""
 
 import pandas as pd
 import numpy as np
@@ -550,35 +539,112 @@ class DataPreparation:
             plt.savefig(self.output_dir / 'Mustard_data_analysis.png', dpi=300, bbox_inches='tight')
             plt.show()
     
+    def save_dataset_statistics_table(self, groundnut_data, mustard_data):
+        """Save dataset statistics in table format for research paper"""
+        print("\n=== Saving Dataset Statistics Table ===")
+        
+        # Create comprehensive dataset statistics
+        stats_data = []
+        
+        # Groundnut statistics
+        if groundnut_data is not None:
+            stats_data.append({
+                'Crop': 'Groundnut',
+                'Total Samples': len(groundnut_data),
+                'Moisture Range (%)': f"{groundnut_data['original_moisture'].min():.2f} - {groundnut_data['original_moisture'].max():.2f}",
+                'ADC Range': f"{groundnut_data['ADC'].min():.0f} - {groundnut_data['ADC'].max():.0f}",
+                'Temperature Range (°C)': f"{groundnut_data['Temperature'].min():.1f} - {groundnut_data['Temperature'].max():.1f}",
+                'Humidity Range (%)': f"{groundnut_data['Humidity'].min():.1f} - {groundnut_data['Humidity'].max():.1f}",
+                'Mean Moisture (%)': f"{groundnut_data['original_moisture'].mean():.2f}",
+                'Std Moisture (%)': f"{groundnut_data['original_moisture'].std():.2f}",
+                'Mean ADC': f"{groundnut_data['ADC'].mean():.1f}",
+                'Std ADC': f"{groundnut_data['ADC'].std():.1f}"
+            })
+        
+        # Mustard statistics
+        if mustard_data is not None:
+            stats_data.append({
+                'Crop': 'Mustard',
+                'Total Samples': len(mustard_data),
+                'Moisture Range (%)': f"{mustard_data['original_moisture'].min():.2f} - {mustard_data['original_moisture'].max():.2f}",
+                'ADC Range': f"{mustard_data['ADC'].min():.0f} - {mustard_data['ADC'].max():.0f}",
+                'Temperature Range (°C)': f"{mustard_data['Temperature'].min():.1f} - {mustard_data['Temperature'].max():.1f}",
+                'Humidity Range (%)': f"{mustard_data['Humidity'].min():.1f} - {mustard_data['Humidity'].max():.1f}",
+                'Mean Moisture (%)': f"{mustard_data['original_moisture'].mean():.2f}",
+                'Std Moisture (%)': f"{mustard_data['original_moisture'].std():.2f}",
+                'Mean ADC': f"{mustard_data['ADC'].mean():.1f}",
+                'Std ADC': f"{mustard_data['ADC'].std():.1f}"
+            })
+        
+        # Combined statistics
+        if groundnut_data is not None and mustard_data is not None:
+            combined_data = pd.concat([groundnut_data, mustard_data], ignore_index=True)
+            stats_data.append({
+                'Crop': 'Combined',
+                'Total Samples': len(combined_data),
+                'Moisture Range (%)': f"{combined_data['original_moisture'].min():.2f} - {combined_data['original_moisture'].max():.2f}",
+                'ADC Range': f"{combined_data['ADC'].min():.0f} - {combined_data['ADC'].max():.0f}",
+                'Temperature Range (°C)': f"{combined_data['Temperature'].min():.1f} - {combined_data['Temperature'].max():.1f}",
+                'Humidity Range (%)': f"{combined_data['Humidity'].min():.1f} - {combined_data['Humidity'].max():.1f}",
+                'Mean Moisture (%)': f"{combined_data['original_moisture'].mean():.2f}",
+                'Std Moisture (%)': f"{combined_data['original_moisture'].std():.2f}",
+                'Mean ADC': f"{combined_data['ADC'].mean():.1f}",
+                'Std ADC': f"{combined_data['ADC'].std():.1f}"
+            })
+        
+        # Convert to DataFrame
+        stats_df = pd.DataFrame(stats_data)
+        
+        # Save as CSV for easy import into research paper
+        stats_filename = "dataset_statistics_table.csv"
+        stats_path = self.output_dir / stats_filename
+        stats_df.to_csv(stats_path, index=False)
+        print(f"✓ Dataset statistics table saved to: {stats_path}")
+        
+        # Also save as LaTeX table format
+        latex_table = stats_df.to_latex(index=False)
+        latex_filename = "dataset_statistics_table.tex"
+        latex_path = self.output_dir / latex_filename
+        with open(latex_path, 'w') as f:
+            f.write(latex_table)
+        print(f"✓ LaTeX table saved to: {latex_path}")
+        
+        # Print formatted table
+        print(f"\nDataset Statistics:")
+        print("=" * 120)
+        print(stats_df.to_string(index=False))
+        print("=" * 120)
+        
+        return stats_df
+    
     def save_processed_data(self, groundnut_data, mustard_data):
-        """Save processed data for training"""
+        """Save processed datasets"""
         print("\n=== Saving Processed Data ===")
         
-        # Save individual crop data
+        # Save individual crop datasets
         if groundnut_data is not None:
             groundnut_file = self.output_dir / "Groundnut_merged_data.csv"
             groundnut_data.to_csv(groundnut_file, index=False)
-            print(f"  Groundnut data saved: {groundnut_file}")
-            print(f"    Samples: {len(groundnut_data)}")
+            print(f"✓ Groundnut data saved: {len(groundnut_data)} samples")
         
         if mustard_data is not None:
             mustard_file = self.output_dir / "Mustard_merged_data.csv"
             mustard_data.to_csv(mustard_file, index=False)
-            print(f"  Mustard data saved: {mustard_file}")
-            print(f"    Samples: {len(mustard_data)}")
+            print(f"✓ Mustard data saved: {len(mustard_data)} samples")
         
-        # Create combined dataset
+        # Save combined dataset
         if groundnut_data is not None and mustard_data is not None:
             combined_data = pd.concat([groundnut_data, mustard_data], ignore_index=True)
             combined_file = self.output_dir / "combined_crops_data.csv"
             combined_data.to_csv(combined_file, index=False)
-            print(f"  Combined data saved: {combined_file}")
-            print(f"    Total samples: {len(combined_data)}")
-            print(f"    Crop distribution:")
-            print(combined_data['crop'].value_counts())
+            print(f"✓ Combined data saved: {len(combined_data)} samples")
+            
+            # Save dataset statistics table
+            stats_table = self.save_dataset_statistics_table(groundnut_data, mustard_data)
         
-        print("\nData preparation completed successfully!")
-        print("Files ready for Phase 2: Model Training")
+        print(f"✓ All processed data saved to {self.output_dir}")
+        
+        return stats_table if 'stats_table' in locals() else None
     
     def run_data_preparation(self):
         """Run complete data preparation pipeline"""
