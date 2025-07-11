@@ -1,93 +1,84 @@
-# Raspberry Pi Soil Moisture Monitor - Deployment Guide
+# Raspberry Pi 4B Soil Moisture Monitor Setup
 
-## Overview
-This guide will help you deploy the soil moisture monitoring system on a Raspberry Pi with proper sensor connections and remote access via SSH and VNC.
+This guide helps you set up your soil moisture monitoring system on a Raspberry Pi 4B with the capacitive soil moisture sensor V2.0.
 
-## Prerequisites
+## What You Need
 
-### Hardware Requirements
-- **Raspberry Pi** (3B+, 4B, or newer recommended)
-- **MicroSD Card** (16GB or larger, Class 10 recommended)
-- **Power Supply** (5V/3A for Pi 4, 5V/2.5A for Pi 3)
-- **DHT22** temperature and humidity sensor
-- **ADS1115** 16-bit ADC module
-- **Soil moisture sensor** (analog output)
-- **Breadboard** and jumper wires
-- **Case** for Raspberry Pi (optional but recommended)
+### Hardware
+- Raspberry Pi 4B (2GB, 4GB, or 8GB RAM)
+- 16GB+ microSD card (Class 10 recommended)
+- 5V/3A power supply
+- DHT22 temperature and humidity sensor
+- Capacitive soil moisture sensor V2.0
+- Breadboard and jumper wires
+- Pi case (optional but nice to have)
 
-### Software Requirements
-- **Raspberry Pi OS** (Bullseye or newer)
-- **SSH** enabled
-- **VNC Server** (for remote desktop access)
+### Software
+- Raspberry Pi OS (latest version)
+- SSH access
+- VNC for remote desktop (optional)
 
-## Step 1: Raspberry Pi Setup
+## Step 1: Get Your Pi Ready
 
-### 1.1 Install Raspberry Pi OS
-1. Download Raspberry Pi Imager from [raspberrypi.org](https://www.raspberrypi.org/software/)
-2. Insert microSD card into your computer
+### Install Raspberry Pi OS
+1. Download Raspberry Pi Imager from raspberrypi.org
+2. Put your microSD card in your computer
 3. Open Raspberry Pi Imager
-4. Choose "Raspberry Pi OS (32-bit)" or "Raspberry Pi OS (64-bit)"
-5. Select your microSD card
-6. Click the gear icon to configure:
-   - Set hostname: `soil-moisture-pi`
+4. Choose "Raspberry Pi OS (64-bit)"
+5. Pick your microSD card
+6. Click the gear icon and set:
+   - Hostname: soil-moisture-pi
    - Enable SSH
-   - Set username: `pi`
-   - Set password
-   - Configure wireless LAN (if using WiFi)
-7. Click "Write" and wait for completion
+   - Username: pi
+   - Set a password you'll remember
+   - Add your WiFi details if using wireless
+7. Click "Write" and wait
 
-### 1.2 Initial Boot and Configuration
-1. Insert microSD card into Raspberry Pi
-2. Connect power supply and boot
-3. Wait for first boot to complete
-4. Connect via SSH or directly with monitor/keyboard
+### First Boot
+1. Put the microSD card in your Pi 4B
+2. Connect power and wait for it to boot
+3. Connect via SSH or use a monitor(preferrably use monitor because I faced lot of connectivity issues through ssh during first boot)
 
-### 1.3 Enable Required Interfaces
+### Enable What You Need
 ```bash
-# Enable I2C
+# Turn on I2C
 sudo raspi-config nonint do_i2c 0
 
-# Enable SPI (if needed)
+# Turn on SPI
 sudo raspi-config nonint do_spi 0
 
-# Enable SSH (if not already enabled)
-sudo raspi-config nonint do_ssh 0
+# Turn on SSH
+sudo raspi-config nonint do_ssh 0 (ssh can aslo turned on during upload of OS through customization settings)
 
-# Enable VNC
+# Turn on VNC
 sudo raspi-config nonint do_vnc 0
 ```
 
-### 1.4 Update System
+### Update Everything
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo reboot
 ```
 
-## Step 2: Hardware Connections
+## Step 2: Connect Your Sensors
 
-### 2.1 DHT22 Sensor Connections
-| DHT22 Pin | Raspberry Pi Pin | Description |
-|-----------|------------------|-------------|
-| VCC       | 3.3V (Pin 1)     | Power       |
-| GND       | GND (Pin 6)      | Ground      |
-| DATA      | GPIO4 (Pin 7)    | Data signal |
+### DHT22 Sensor
+| DHT22 Pin | Pi 4B Pin | What It Does |
+|-----------|-----------|--------------|
+| VCC       | 3.3V (Pin 1) | Power       |
+| GND       | GND (Pin 6)  | Ground      |
+| DATA      | GPIO4 (Pin 7)| Data signal |
 
-### 2.2 ADS1115 ADC Connections
-| ADS1115 Pin | Raspberry Pi Pin | Description |
-|-------------|------------------|-------------|
-| VDD         | 3.3V (Pin 1)     | Power       |
-| GND         | GND (Pin 6)      | Ground      |
-| SCL         | GPIO3 (Pin 5)    | I2C Clock   |
-| SDA         | GPIO2 (Pin 3)    | I2C Data    |
-| A0          | Soil sensor      | Analog input|
+### Capacitive Soil Moisture Sensor V2.0
+| Sensor Pin | Pi 4B Pin | What It Does |
+|------------|-----------|--------------|
+| VCC        | 3.3V (Pin 1) | Power       |
+| GND        | GND (Pin 6)  | Ground      |
+| AOUT       | GPIO17 (Pin 11) | Analog output |
 
-### 2.3 Soil Moisture Sensor
-- Connect the analog output of your soil moisture sensor to A0 of ADS1115
-- Connect power and ground as per sensor specifications
-
-### 2.4 Connection Diagram
+### How to Wire It
 ```
-Raspberry Pi
+Raspberry Pi 4B
 ┌─────────────────┐
 │                 │
 │ 3.3V ──┬─────── │
@@ -96,9 +87,7 @@ Raspberry Pi
 │        │        │
 │ GPIO4 ─┼─────── │
 │        │        │
-│ GPIO3 ─┼─────── │
-│        │        │
-│ GPIO2 ─┼─────── │
+│ GPIO17 ─┼────── │
 └────────┼────────┘
          │
          └── Breadboard
@@ -108,195 +97,189 @@ Raspberry Pi
              │   ├── GND
              │   └── DATA
              │
-             └── ADS1115
-                 ├── VDD
+             └── Capacitive Sensor V2.0
+                 ├── VCC
                  ├── GND
-                 ├── SCL
-                 ├── SDA
-                 └── A0 ── Soil Sensor
+                 └── AOUT
 ```
 
-## Step 3: Software Deployment
+## Step 3: Put the Software On
 
-### 3.1 Transfer Files to Raspberry Pi
+### Copy Files to Your Pi
 ```bash
-# From your development machine, copy the rpi folder
-scp -r rpi/ pi@raspberry-pi-ip:/home/pi/
+# From your computer, copy the rpi folder
+scp -r rpi/ pi@your-pi-ip:/home/pi/
 
-# Or use SCP to copy individual files
-scp rpi/* pi@raspberry-pi-ip:/home/pi/soil-moisture-monitor/
+# Copy your model files too (these are in the new_ML models folder in github)
+scp new_groundnut_model.h5 pi@your-pi-ip:/home/pi/rpi/
+scp new_mustard_model.h5 pi@your-pi-ip:/home/pi/rpi/
+scp scaler_groundnut.pkl pi@your-pi-ip:/home/pi/rpi/
+scp scaler_mustard.pkl pi@your-pi-ip:/home/pi/rpi/
 ```
 
-### 3.2 Run Setup Script
+### Run the Setup
 ```bash
-# SSH into Raspberry Pi
-ssh pi@raspberry-pi-ip
+# Connect to your Pi
+ssh pi@your-pi-ip
 
-# Navigate to the rpi directory
+# Go to the rpi folder
 cd rpi
 
-# Make setup script executable
+# Make the script work
 chmod +x setup_rpi.sh
 
-# Run setup script
+# Run it
 ./setup_rpi.sh
 ```
 
-### 3.3 Manual Setup (Alternative)
-If the setup script fails, follow these manual steps:
-
+### If Setup Fails
 ```bash
-# Create application directory
+# Make the folder
 mkdir -p /home/pi/soil-moisture-monitor
 cd /home/pi/soil-moisture-monitor
 
-# Create virtual environment
+# Make Python environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
-pip install -r requirements_rpi.txt
+# Install what you need
+pip install -r requirements_rpi.txt (First check python 3.11 is installed or not)
 
-# Copy model files (from your development machine)
-# new_groundnut_model.h5
-# new_mustard_model.h5
-# scaler_groundnut.pkl
-# scaler_mustard.pkl
-
-# Copy application files
+# Copy your files
 cp main_app_rpi.py .
 cp sensor_interface.py .
 cp data_logger.py .
 ```
 
-## Step 4: Testing and Verification
+## Step 4: Test Everything
 
-### 4.1 Test I2C Devices
+### Check I2C
 ```bash
-# Check if I2C devices are detected
 i2cdetect -y 1
-
-# Expected output should show ADS1115 at address 0x48
 ```
 
-### 4.2 Test Sensors
+### Test Your Sensors
 ```bash
-# Activate virtual environment
+# Turn on the Python environment
 source venv/bin/activate
 
 # Test sensors
 python test_sensors.py
 ```
 
-### 4.3 Test Web Application
+### Test the Web App
 ```bash
-# Start the web application
+# Start it
 python main_app_rpi.py
 
-# Access from browser: http://raspberry-pi-ip:5000
+# Open in browser: http://your-pi-ip:5000
 ```
 
-### 4.4 Test Data Logger
+### Test Data Logging
 ```bash
-# Start data logger
+# Start logger
 python data_logger.py
 
 # Check logs
 tail -f logs/data_logger.log
 ```
 
-## Step 5: Remote Access Setup
+## Step 5: Remote Access
 
-### 5.1 SSH Access
-SSH should already be enabled. Connect using:
+### SSH (Already Working)
 ```bash
-ssh pi@raspberry-pi-ip
+ssh pi@your-pi-ip
 ```
 
-### 5.2 VNC Server Setup
+### VNC for Desktop
 ```bash
-# Install VNC server
+# Install VNC
 sudo apt install -y realvnc-vnc-server
 
-# Enable VNC
+# Turn it on
 sudo raspi-config nonint do_vnc 0
 
-# Set VNC password
+# Set password
 vncpasswd
 
-# Start VNC server
+# Start it
 vncserver :1 -geometry 1920x1080 -depth 24
 ```
 
-### 5.3 VNC Client Connection
-1. Download VNC Viewer from [realvnc.com](https://www.realvnc.com/en/connect/download/viewer/)
-2. Connect to `raspberry-pi-ip:1`
-3. Enter the VNC password you set
+### Connect with VNC Viewer
+1. Download VNC Viewer from realvnc.com
+2. Connect to your-pi-ip:1
+3. Use the password you set
 
-## Step 6: Service Management
+## Step 6: Make It Start Automatically
 
-### 6.1 Enable Auto-Start
+### Turn On Auto-Start
 ```bash
 # Start the service
 sudo systemctl start soil-moisture-monitor
 
-# Enable auto-start on boot
+# Make it start when Pi boots
 sudo systemctl enable soil-moisture-monitor
 
-# Check status
+# Check if it's working
 sudo systemctl status soil-moisture-monitor
 ```
 
-### 6.2 Service Commands
+### Control the Service
 ```bash
-# Start service
+# Start it
 sudo systemctl start soil-moisture-monitor
 
-# Stop service
+# Stop it
 sudo systemctl stop soil-moisture-monitor
 
-# Restart service
+# Restart it
 sudo systemctl restart soil-moisture-monitor
 
-# View logs
+# See logs
 sudo journalctl -u soil-moisture-monitor -f
 
-# Check if service is running
+# Check if running
 sudo systemctl is-active soil-moisture-monitor
 ```
 
-## Step 7: Monitoring and Maintenance
+## Step 7: Use Your System
 
-### 7.1 Web Interface
-- Access: `http://raspberry-pi-ip:5000`
+### Web Interface
+Go to: http://your-pi-ip:5000
+
+You'll see:
 - Real-time sensor readings
 - Moisture predictions
 - System status
 
-### 7.2 API Endpoints
+### API Commands
 ```bash
-# Get sensor readings
-curl http://raspberry-pi-ip:5000/api/sensors
+# Get sensor data
+curl http://your-pi-ip:5000/api/sensors (i am specifying your-pi-ip because it depends on the name you give to your raspverry pi during upload itself, use proper name)
 
-# Get moisture prediction for groundnut
-curl http://raspberry-pi-ip:5000/api/predict/groundnut
+# Get groundnut moisture
+curl http://your-pi-ip:5000/api/predict/groundnut
 
-# Get system status
-curl http://raspberry-pi-ip:5000/api/status
+# Get mustard moisture
+curl http://your-pi-ip:5000/api/predict/mustard
+
+# Check system status
+curl http://your-pi-ip:5000/api/status
 ```
 
-### 7.3 Data Access
+### Look at Your Data
 ```bash
-# View recent data
+# See recent readings
 sqlite3 data/soil_moisture.db "SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT 10;"
 
-# Export data to CSV
+# Export to CSV
 sqlite3 data/soil_moisture.db "SELECT * FROM sensor_readings;" > data_export.csv
 ```
 
-### 7.4 Log Monitoring
+### Check Logs
 ```bash
-# Application logs
+# App logs
 tail -f logs/app.log
 
 # Data logger logs
@@ -306,147 +289,130 @@ tail -f logs/data_logger.log
 sudo journalctl -u soil-moisture-monitor -f
 ```
 
-## Step 8: Troubleshooting
+## Step 8: Fix Problems
 
-### 8.1 Common Issues
-
-#### Sensors Not Detected
+### Sensors Not Working
 ```bash
-# Check I2C devices
+# Check I2C
 i2cdetect -y 1
 
-# Check GPIO permissions
+# Check permissions
 groups pi
 
-# Test individual sensors
-python -c "import board; import busio; i2c = busio.I2C(board.SCL, board.SDA); print('I2C OK')"
+
+
+
 ```
 
-#### Permission Errors
+### Models Not Loading
 ```bash
-# Add user to required groups
-sudo usermod -a -G gpio,i2c,spi pi
-
-# Reboot to apply changes
-sudo reboot
-```
-
-#### Model Loading Errors
-```bash
-# Check if model files exist
+# Check files
 ls -la *.h5 *.pkl
 
-# Check TensorFlow installation
+# Check TensorFlow
 python -c "import tensorflow as tf; print(tf.__version__)"
 ```
 
-#### Service Not Starting
+### Service Won't Start
 ```bash
-# Check service logs
+# Check logs
 sudo journalctl -u soil-moisture-monitor -n 50
 
-# Check if port is in use
+# Check port
 sudo netstat -tlnp | grep :5000
 
-# Test manual start
+# Test manually
 cd /home/pi/soil-moisture-monitor
 source venv/bin/activate
 python main_app_rpi.py
 ```
 
-### 8.2 Performance Optimization
+### Check Performance
 ```bash
-# Monitor system resources
+# System resources
 htop
 
-# Check disk usage
+# Disk space
 df -h
 
-# Check memory usage
+# Memory
 free -h
 
-# Monitor temperature
+# Temperature
 vcgencmd measure_temp
 ```
 
-## Step 9: Security Considerations
+## Step 9: Keep It Safe
 
-### 9.1 Firewall Setup
+### Firewall
 ```bash
-# Install UFW
+# Install firewall
 sudo apt install ufw
 
-# Allow SSH
+# Allow SSH and web
 sudo ufw allow ssh
-
-# Allow web interface
 sudo ufw allow 5000
 
-# Enable firewall
+# Turn on firewall
 sudo ufw enable
 ```
 
-### 9.2 Change Default Password
+### Change Password
 ```bash
-# Change pi user password
 passwd
-
-# Or create new user
-sudo adduser newuser
-sudo usermod -a -G sudo newuser
 ```
 
-### 9.3 Secure VNC
+### Secure VNC
 ```bash
-# Use SSH tunnel for VNC
-ssh -L 5901:localhost:5901 pi@raspberry-pi-ip
+# Use SSH tunnel
+ssh -L 5901:localhost:5901 pi@your-pi-ip
 
 # Then connect VNC to localhost:5901
 ```
 
-## Step 10: Backup and Recovery
+## Step 10: Backup Your Data
 
-### 10.1 Data Backup
+### Backup Data
 ```bash
-# Backup database
+# Database
 cp data/soil_moisture.db backup/soil_moisture_$(date +%Y%m%d).db
 
-# Backup logs
+# Logs
 tar -czf backup/logs_$(date +%Y%m%d).tar.gz logs/
 
-# Backup models
+# Models
 cp *.h5 *.pkl backup/
 ```
 
-### 10.2 System Backup
+### Backup System
 ```bash
-# Create system image
+# Full system backup
 sudo dd if=/dev/mmcblk0 of=backup/pi_backup_$(date +%Y%m%d).img bs=4M status=progress
 ```
 
-## Support and Maintenance
+## Keep It Running
 
-### Regular Maintenance Tasks
-1. **Weekly**: Check logs for errors
-2. **Monthly**: Update system packages
-3. **Quarterly**: Clean sensor connections
-4. **Annually**: Replace sensors if needed
+### Regular Checks
+- Weekly: Look at logs for errors
+- Monthly: Update system
+- Quarterly: Clean sensor connections
+- Yearly: Replace sensors if needed
 
-### Monitoring Checklist
-- [ ] Sensors responding correctly
+### What to Watch
+- [ ] Sensors working
 - [ ] Web interface accessible
 - [ ] Data logging working
-- [ ] Predictions reasonable
-- [ ] System resources adequate
-- [ ] Logs free of errors
+- [ ] Predictions make sense
+- [ ] Pi has enough resources
+- [ ] No errors in logs
 
-### Contact Information
-For technical support or questions:
-- Check the logs first
-- Review this deployment guide
-- Check hardware connections
-- Verify software installation
+### Get Help
+If something's not working:
+1. Check the logs first
+2. Look at this guide
+3. Check your connections
+4. Make sure software is installed right
 
 ---
 
-**Note**: This deployment guide assumes you have basic familiarity with Raspberry Pi, Linux command line, and Python. If you encounter issues, start with the troubleshooting section and work through the common problems listed there. 
+That's it! Your soil moisture monitor should be working on your Raspberry Pi 4B with the capacitive sensor V2.0. 

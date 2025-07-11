@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Raspberry Pi Soil Moisture Monitor Setup Script
+# Raspberry Pi 4B Soil Moisture Monitor Setup Script
 # This script sets up the complete environment for the soil moisture monitoring system
 
 set -e  # Exit on any error
 
-echo "🌱 Setting up Raspberry Pi Soil Moisture Monitor..."
+echo "🌱 Setting up Raspberry Pi 4B Soil Moisture Monitor..."
 echo "=================================================="
 
 # Colors for output
@@ -71,7 +71,7 @@ sudo apt install -y \
 print_status "Enabling I2C interface..."
 sudo raspi-config nonint do_i2c 0
 
-# Enable SPI interface (if needed for other sensors)
+# Enable SPI interface
 print_status "Enabling SPI interface..."
 sudo raspi-config nonint do_spi 0
 
@@ -156,7 +156,7 @@ cat > config.py << EOF
 
 # Sensor Configuration
 DHT_PIN = 4  # GPIO pin for DHT22 sensor
-ADS_ADDRESS = 0x48  # I2C address for ADS1115
+MOISTURE_PIN = 17  # GPIO pin for capacitive moisture sensor
 
 # Application Configuration
 HOST = '0.0.0.0'
@@ -229,16 +229,15 @@ chmod +x test_sensors.py
 # Create README
 print_status "Creating README file..."
 cat > README.md << 'EOF'
-# Soil Moisture Monitor - Raspberry Pi
+# Soil Moisture Monitor - Raspberry Pi 4B
 
 ## Overview
-This system monitors soil moisture using DHT22 (temperature/humidity) and ADS1115 (moisture sensor) sensors, and provides predictions using TensorFlow models.
+This system monitors soil moisture using DHT22 (temperature/humidity) and capacitive soil moisture sensor V2.0, and provides predictions using TensorFlow models.
 
 ## Hardware Requirements
-- Raspberry Pi (3B+, 4B, or newer)
+- Raspberry Pi 4B (2GB, 4GB, or 8GB RAM)
 - DHT22 temperature and humidity sensor
-- ADS1115 16-bit ADC
-- Soil moisture sensor (analog)
+- Capacitive soil moisture sensor V2.0
 - Breadboard and jumper wires
 
 ## Connections
@@ -247,12 +246,10 @@ This system monitors soil moisture using DHT22 (temperature/humidity) and ADS111
 - GND → GND
 - DATA → GPIO4
 
-### ADS1115 ADC
-- VDD → 3.3V
+### Capacitive Soil Moisture Sensor V2.0
+- VCC → 3.3V
 - GND → GND
-- SCL → GPIO3 (SCL)
-- SDA → GPIO2 (SDA)
-- A0 → Soil moisture sensor output
+- AOUT → GPIO17
 
 ## Usage
 

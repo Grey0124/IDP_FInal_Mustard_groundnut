@@ -15,7 +15,6 @@ gunicorn>=21.2.0
 # GPIO and sensor libraries
 RPi.GPIO>=0.7.0
 adafruit-circuitpython-dht>=3.7.0
-adafruit-circuitpython-ads1x15>=3.3.0
 
 # Data visualization
 matplotlib>=3.5.0

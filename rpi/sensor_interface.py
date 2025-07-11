@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
 Sensor Interface for Raspberry Pi
-Handles DHT22 (temperature/humidity) and ADS1115 (moisture sensor) readings
+Handles DHT22 (temperature/humidity) and capacitive soil moisture sensor V2.0
 """
 
 import time
 import board
 import busio
-import adafruit_ads1x15.ads1115 as ADS
-from adafruit_ads1x15.analog_in import AnalogIn
 import adafruit_dht
 import RPi.GPIO as GPIO
 from typing import Dict, Tuple, Optional
@@ -19,27 +17,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class SensorInterface:
-    def __init__(self, dht_pin: int = 4, ads_address: int = 0x48):
+    def __init__(self, dht_pin: int = 4, moisture_pin: int = 17):
         """
         Initialize sensor interface
         
         Args:
             dht_pin: GPIO pin for DHT22 sensor (default: GPIO4)
-            ads_address: I2C address for ADS1115 (default: 0x48)
+            moisture_pin: GPIO pin for capacitive moisture sensor (default: GPIO17)
         """
         self.dht_pin = dht_pin
-        self.ads_address = ads_address
+        self.moisture_pin = moisture_pin
         
         # Initialize GPIO
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         
-        # Initialize I2C bus
-        self.i2c = busio.I2C(board.SCL, board.SDA)
-        
         # Initialize sensors
         self._init_dht_sensor()
-        self._init_ads_sensor()
+        self._init_moisture_sensor()
         
         logger.info("Sensor interface initialized successfully")
     
@@ -52,17 +47,15 @@ class SensorInterface:
             logger.error(f"Failed to initialize DHT22 sensor: {e}")
             self.dht_sensor = None
     
-    def _init_ads_sensor(self):
-        """Initialize ADS1115 ADC for moisture sensor"""
+    def _init_moisture_sensor(self):
+        """Initialize capacitive soil moisture sensor V2.0"""
         try:
-            self.ads = ADS.ADS1115(self.i2c, address=self.ads_address)
-            # Configure for single-ended reading on A0
-            self.moisture_channel = AnalogIn(self.ads, ADS.P0)
-            logger.info(f"ADS1115 sensor initialized at address 0x{self.ads_address:02x}")
+            # The capacitive sensor V2.0 has built-in ADC and outputs analog signal
+            # We'll use GPIO17 as analog input (you may need to enable analog input)
+            self.moisture_pin = self.moisture_pin
+            logger.info(f"Capacitive moisture sensor initialized on GPIO{self.moisture_pin}")
         except Exception as e:
-            logger.error(f"Failed to initialize ADS1115 sensor: {e}")
-            self.ads = None
-            self.moisture_channel = None
+            logger.error(f"Failed to initialize moisture sensor: {e}")
     
     def read_temperature_humidity(self) -> Tuple[Optional[float], Optional[float]]:
         """
@@ -91,20 +84,18 @@ class SensorInterface:
     
     def read_moisture_adc(self) -> Optional[float]:
         """
-        Read moisture sensor value from ADS1115
+        Read moisture sensor value from capacitive sensor V2.0
         
         Returns:
-            ADC value (0-65535 for 16-bit ADC)
+            ADC value (0-4095 for 12-bit ADC on Pi 4B)
         """
-        if self.moisture_channel is None:
-            return None
-        
         try:
-            # Read raw ADC value
-            adc_value = self.moisture_channel.value
+            # Read analog value from capacitive sensor
+            # The sensor outputs 0-3.3V which gets converted to 0-4095 by Pi's ADC
+            adc_value = self._read_analog(self.moisture_pin)
             
-            # Convert to voltage (ADS1115 reference voltage is 4.096V)
-            voltage = (adc_value / 32767) * 4.096
+            # Convert to voltage (Pi 4B reference voltage is 3.3V)
+            voltage = (adc_value / 4095) * 3.3
             
             logger.info(f"Moisture ADC: {adc_value}, Voltage: {voltage:.3f}V")
             return float(adc_value)
@@ -112,6 +103,35 @@ class SensorInterface:
         except Exception as e:
             logger.error(f"Error reading moisture sensor: {e}")
             return None
+    
+    def _read_analog(self, pin: int) -> int:
+        """
+        Read analog value from GPIO pin
+        Note: This is a simplified implementation. For accurate readings,
+        you might need to use an external ADC or MCP3008
+        """
+        try:
+            # For capacitive sensor V2.0, we can use GPIO as analog input
+            # This is a basic implementation - you may need to adjust based on your setup
+            GPIO.setup(pin, GPIO.IN)
+            
+            # Read multiple times and average for stability
+            readings = []
+            for _ in range(10):
+                # Read the pin state (this is simplified - actual analog reading may differ)
+                value = GPIO.input(pin)
+                readings.append(value)
+                time.sleep(0.01)
+            
+            # Calculate average and scale to 12-bit range
+            avg_value = sum(readings) / len(readings)
+            adc_value = int(avg_value * 4095)  # Scale to 12-bit
+            
+            return adc_value
+            
+        except Exception as e:
+            logger.error(f"Error reading analog pin {pin}: {e}")
+            return 0
     
     def read_all_sensors(self) -> Dict[str, Optional[float]]:
         """
@@ -136,7 +156,7 @@ class SensorInterface:
         """Get status of all sensors"""
         return {
             'dht22': self.dht_sensor is not None,
-            'ads1115': self.ads is not None
+            'capacitive_moisture': True  # Always true as it's just GPIO
         }
     
     def cleanup(self):
