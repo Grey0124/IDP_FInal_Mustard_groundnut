@@ -1,0 +1,15 @@
+[Unit]
+Description=Soil Moisture Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/soil-moisture-monitor
+Environment=PATH=/home/pi/soil-moisture-monitor/venv/bin
+ExecStart=/home/pi/soil-moisture-monitor/venv/bin/python main_app_rpi.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 
